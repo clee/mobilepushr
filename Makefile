@@ -1,8 +1,10 @@
 CC = arm-apple-darwin-cc
 LD = $(CC)
+
+CFLAGS = -Wall -Werror -std=c99
 LDFLAGS = -ObjC -framework CoreFoundation -framework Foundation \
-          -framework UIKit -framework LayerKit -framework CoreGraphics
-CFLAGS = -Wall -Werror
+          -framework UIKit -framework LayerKit -framework CoreGraphics \
+          -framework OfficeImport
 
 all:	MobilePushr package
 
@@ -20,5 +22,9 @@ package: MobilePushr
 	cp icon.png Pushr.app/icon.png
 	cp background.png Pushr.app/background.png
 
+Muffler: Muffler.m
+	cc -o Muffler Muffler.m -framework Foundation -std=c99 -ObjC 
+
 clean:	
 	rm -fr *.o MobilePushr Pushr.app
+
