@@ -24,61 +24,84 @@
 
 -(int)numberOfRowsInTable: (UITable *)table
 {
-  return 2;
+	return 2;
 }
 
 -(UITableCell *)table: (UITable *)table cellForRow: (int)row column: (int)col
 {
-  return row ? (UITableCell *)buttonCell : (UITableCell *)prefCell;
+	return row ? (UITableCell *)buttonCell : (UITableCell *)prefCell;
 }
 
 -(UITableCell *)table: (UITable *)table cellForRow: (int)row column: (int)col reusing: (BOOL)reusing
 {
-  return (UITableCell *)prefCell;
+	return (UITableCell *)prefCell;
+}
+
+- (NSArray *)arrayOfPhotos
+{
+	NSString *jpg;
+	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
+	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
+	NSMutableArray *photos = [NSMutableArray array];
+
+	while ((jpg = [dirEnum nextObject])) {
+		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
+			[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
+		}
+	}
+
+	return [NSArray arrayWithArray:photos];
+}
+
+- (void) flickrTags
+{
+	id tags = [[NSClassFromString(@"NSXMLDocument") alloc] init];
+	[tags description];
 }
 
 - (void) applicationDidFinishLaunching: (id) unused
 {
-  // Terminal size based on the font size below
+	UIWindow *window = [[UIWindow alloc] initWithContentRect: [UIHardware fullScreenApplicationContentRect]];
+	
+	NSArray *photos = [self arrayOfPhotos];
+	for(int i = 0; i < [photos count]; i++) {
+		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
+		[self flickrTags];
+	}
 
-  UIWindow *window = [[UIWindow alloc] initWithContentRect: [UIHardware fullScreenApplicationContentRect]];
-  [window orderFront: self];
-  [window makeKey: self];
+	struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
+	UIImageView *background = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
+//	[background setImage:[UIImage imageNamed:@"wallpaper.jpg"]];
+	[background setImage:[UIImage defaultDesktopImage]];
+//	[background setImage:[[[UIImage alloc] initWithImageRef:[self createApplicationDefaultPNG]] autorelease]];
 
-  NSBundle *bundle = [NSBundle mainBundle];
-  NSString *background = [bundle pathForResource:@"background" ofType:@"png"];
-  UIImage *bg = [[UIImage alloc] initWithContentsOfFile:background];
+	UIView *mainView = [[UIView alloc] initWithFrame: rect];
+	[mainView addSubview:background];
 
-  struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
-  UIImageView *bgView = [[UIImageView alloc] initWithFrame: rect];
-  [bgView setImage:bg];
-  [bgView setAlpha:1.0f];
+	prefCell = [[UIPreferencesTableCell alloc] init];
+	[prefCell setTitle: @"Here's a title"];
 
-  UIView *mainView = [[UIView alloc] initWithFrame: rect];
+	UIPushButton* button = [[UIPushButton alloc] initWithTitle: @"Upload to Flickr now"];
 
-  prefCell = [[UIPreferencesTableCell alloc] init];
-  [prefCell setTitle: @"Here's a title"];
+	buttonCell = [[UITableCell alloc] init];
+	[buttonCell addSubview: button];
+	[button sizeToFit];
 
-  UIPushButton* button = [[UIPushButton alloc] initWithTitle: @"Upload to Flickr now"];
+	UITable *table = [[UITable alloc] initWithFrame: CGRectMake(0.0f, 48.0f, 320.0f, 480.0f - 16.0f - 32.0f)];
+	UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Pushr" identifier: @"hello" width: 320.0f];
 
-  buttonCell = [[UITableCell alloc] init];
-  [buttonCell addSubview: button];
-  [button sizeToFit];
+	[window _setHidden: NO];
 
-  UITable *table = [[UITable alloc] initWithFrame: CGRectMake(0.0f, 48.0f, 320.0f, 480.0f - 16.0f - 32.0f)];
-  UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Pushr" identifier: @"hello" width: 320.0f];
+	[table addTableColumn: col];
+	[table setDataSource: self];
+	[table setDelegate: self];
+	[table reloadData];
 
-  [window _setHidden: NO];
+	[mainView addSubview: table];
 
-  [table addTableColumn: col];
-  [table setDataSource: self];
-  [table setDelegate: self];
-  [table reloadData];
-
-  [mainView addSubview: bgView];
-  [mainView addSubview: table];
-
-  [window setContentView: mainView];
+	[window orderFront: self];
+	[window makeKey: self];
+	[window setContentView: mainView];
 }
 
 @end
