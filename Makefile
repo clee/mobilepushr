@@ -1,17 +1,18 @@
-CC = arm-apple-darwin-cc
-LD = $(CC)
+CC = arm-apple-darwin-gcc
+CXX = arm-apple-darwin-g++
+LD = arm-apple-darwin-ld
 
-CFLAGS = -Wall -Werror -std=c99
-LDFLAGS = -ObjC -framework CoreFoundation -framework Foundation \
-          -framework UIKit -framework LayerKit -framework CoreGraphics \
-          -framework OfficeImport
+HEAVENLY = /opt/heavenly
 
-all:	MobilePushr package
+CFLAGS = -Wall -Werror -Wno-unused -std=c99
+LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit -framework CoreGraphics -framework OfficeImport
 
-MobilePushr: main.o MobilePushr.o
-	$(LD) $(LDFLAGS) -o $@ $^
+all: MobilePushr package
 
-%.o:	%.m
+MobilePushr: main.o MobilePushr.o PushrMiniToken.o
+	$(CC) $(LDFLAGS) -o $@ $^
+
+%.o: %.m
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 package: MobilePushr
@@ -23,7 +24,10 @@ package: MobilePushr
 	cp background.png Pushr.app/background.png
 
 Muffler: Muffler.m
-	cc -o Muffler Muffler.m -framework Foundation -std=c99 -ObjC 
+	cc -o Muffler Muffler.m -framework Foundation -std=c99 -lobjc -lssl -lcrypto
+
+setdefaults: setdefaults.m
+	cc -o setdefaults setdefaults.m -framework Foundation -std=c99 -lobjc
 
 clean:	
 	rm -fr *.o MobilePushr Pushr.app
