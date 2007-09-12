@@ -2,8 +2,6 @@ CC = arm-apple-darwin-gcc
 CXX = arm-apple-darwin-g++
 LD = arm-apple-darwin-ld
 
-HEAVENLY = /opt/heavenly
-
 CFLAGS = -Wall -Werror -Wno-unused -std=c99
 LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit -framework CoreGraphics -framework OfficeImport
 

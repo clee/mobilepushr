@@ -2,6 +2,8 @@
 #import "MobilePushr.h"
 
 #import <Foundation/Foundation.h>
+#import <CoreFoundation/CoreFoundation.h>
+#import <GraphicsServices/GraphicsServices.h>
 #import <UIKit/CDStructures.h>
 #import <UIKit/UIKit.h>
 #import <UIKit/UITableCell.h>
@@ -20,24 +22,131 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+@class NSXMLNode, NSXMLElement, NSXMLDocument;
+
+@implementation NSData (Pushr)
+- (NSString *)md5HexHash
+{
+	unsigned char digest[16];
+	char finalDigest[32];
+	int i;
+
+	MD5([self bytes], [self length], digest);
+	for (unsigned short int i = 0; i < 16; i++) {
+		sprintf(finalDigest + (i * 2), "%02x", digest[i]);
+	}
+
+	return [NSString stringWithCString: finalDigest length: 32];
+}
+@end
+
+@implementation NSString (Pushr)
+- (NSString *)md5HexHash
+{
+	return [[self dataUsingEncoding: NSUTF8StringEncoding allowLossyConversion: NO] md5HexHash];
+}
+@end
+
+@implementation NSDictionary (Pushr)
+- (NSArray *)pairsJoinedByString: (NSString *)j
+{
+	NSArray *sortedKeys = [[self allKeys] sortedArrayUsingSelector: @selector(caseInsensitiveCompare:)];
+	NSMutableArray *allKeysAndObjects = [NSMutableArray array];
+
+	for (unsigned int i = 0; i < [sortedKeys count]; i++) {
+		NSString *key = [sortedKeys objectAtIndex: i];
+		NSString *val = [self objectForKey: key];
+		[allKeysAndObjects addObject: [NSString stringWithFormat: @"%@%@%@", key, j, val]];
+	}
+
+	return [NSArray arrayWithArray: allKeysAndObjects];
+}
+@end
+
+
 @implementation MobilePushr
 
--(int)numberOfRowsInTable: (UITable *)table
+-(void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
-	return 2;
+	BOOL shouldTerminate = FALSE;
+
+	switch (button) {
+		case 1: {
+			haveSent = TRUE;
+			[self openURL: [NSURL URLWithString: PUSHR_AUTH_URL]];
+			break;
+		}
+		default: {
+			shouldTerminate = TRUE;
+		}
+	}
+
+	[sheet dismiss];
+
+	if (shouldTerminate) {
+		[self terminate];
+	}
 }
 
--(UITableCell *)table: (UITable *)table cellForRow: (int)row column: (int)col
+-(void)sendToGrantPermission
 {
-	return row ? (UITableCell *)buttonCell : (UITableCell *)prefCell;
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Can't upload to Flickr"];
+	[alertSheet setBodyText: @"This application needs your permission to upload pictures to Flickr."];
+	[alertSheet addButtonWithTitle: @"Proceed"];
+	[alertSheet addButtonWithTitle: @"Cancel"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
 }
 
--(UITableCell *)table: (UITable *)table cellForRow: (int)row column: (int)col reusing: (BOOL)reusing
+-(void)setupDefaults
 {
-	return (UITableCell *)prefCell;
+	// Insert code here. Later.
 }
 
-- (NSArray *)arrayOfPhotos
+-(NSString *)getMiniToken
+{
+       // TODO: Make this actually prompt the user for the mini-token.
+       return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
+}
+
+/*
+ * This method made possible by extending system classes (without having to 
+ * inherit from them.) Hooray!
+ */
+-(NSURL *)signedURL: (NSDictionary *)parameters
+{
+        NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", FLICKR_REST_URL];
+        NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
+ 
+        [sig appendString: [[parameters pairsJoinedByString: @""] componentsJoinedByString: @""]];
+        [url appendString: [[parameters pairsJoinedByString: @"="] componentsJoinedByString: @"&"]];
+        [url appendString: [NSString stringWithFormat: @"&api_sig=%@", [sig md5HexHash]]];
+ 
+        return [NSURL URLWithString: url];
+}
+
+/*
+ * retrieveFullAuthToken makes the assumption that the user has
+ * gotten a mini-token from the Flickr page after granting us
+ * the access we need.
+ * 
+ * We have to make a signed call to FLICKR_REST_URL, with the method
+ * FLICKR_GET_TOKEN, and the mini-token provided by the user. This should
+ * respond with a full authorization token, which we can store and re-use.
+ */
+-(void)retrieveFullAuthToken
+{
+        NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"mini_token", nil];
+        NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [self getMiniToken], nil];
+        NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
+ 
+        NSURL *url = [self signedURL: params];
+       
+        // TODO: Add code to actually fetch the contents of the URL and then parse the token and user ID
+}
+
+- (NSArray *)cameraRollPhotos
 {
 	NSString *jpg;
 	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
@@ -50,58 +159,89 @@
 		}
 	}
 
-	return [NSArray arrayWithArray:photos];
+	return [NSArray arrayWithArray: photos];
 }
 
-- (void) flickrTags
+- (NSArray *)flickrTags
 {
-	id tags = [[NSClassFromString(@"NSXMLDocument") alloc] init];
-	[tags description];
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"user_id", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, FLICKR_USER_ID, nil];
+	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
+
+	NSURL *url = [self signedURL: params];
+	NSData *responseData = [NSData dataWithContentsOfURL: url];
+	NSLog(@"Created NSData with contents of URL");
+	NSError *err = nil;
+
+	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 err: &err];
+
+	NSXMLNode *rsp = [[responseDoc children] objectAtIndex: 0];
+#ifdef DEBUG_PARANOID
+	if (![[rsp name] isEqualToString: @"rsp"]) {
+		NSLog(@"This is not an <rsp> tag! Bailing out.");
+		return [NSArray array];
+	}
+#endif
+
+	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString];
+	if (![[[e attributeForName:@"stat"] stringValue] isEqualToString: @"ok"]) {
+		NSLog(@"The status is not 'ok', and we have no error handling!");
+		return [NSArray array];
+	}
+
+	NSArray *tagNodes = [[[[[rsp children] lastObject] children] lastObject] children];
+	NSEnumerator *tagChain = [tagNodes objectEnumerator];
+	NSXMLNode *tagNode = nil;
+	NSMutableArray *tags = [NSMutableArray array];
+
+	while ((tagNode = [tagChain nextObject])) {
+		[tags addObject: [tagNode stringValue]];
+	}
+
+	return [NSArray arrayWithArray: tags];
 }
 
 - (void) applicationDidFinishLaunching: (id) unused
 {
 	UIWindow *window = [[UIWindow alloc] initWithContentRect: [UIHardware fullScreenApplicationContentRect]];
-	
-	NSArray *photos = [self arrayOfPhotos];
-	for(int i = 0; i < [photos count]; i++) {
-		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
-		[self flickrTags];
-	}
 
 	struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
 	UIImageView *background = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
-//	[background setImage:[UIImage imageNamed:@"wallpaper.jpg"]];
 	[background setImage:[UIImage defaultDesktopImage]];
-//	[background setImage:[[[UIImage alloc] initWithImageRef:[self createApplicationDefaultPNG]] autorelease]];
 
 	UIView *mainView = [[UIView alloc] initWithFrame: rect];
-	[mainView addSubview:background];
+	[mainView addSubview: background];
 
-	prefCell = [[UIPreferencesTableCell alloc] init];
-	[prefCell setTitle: @"Here's a title"];
-
-	UIPushButton* button = [[UIPushButton alloc] initWithTitle: @"Upload to Flickr now"];
-
-	buttonCell = [[UITableCell alloc] init];
-	[buttonCell addSubview: button];
-	[button sizeToFit];
-
-	UITable *table = [[UITable alloc] initWithFrame: CGRectMake(0.0f, 48.0f, 320.0f, 480.0f - 16.0f - 32.0f)];
-	UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Pushr" identifier: @"hello" width: 320.0f];
+	[window setContentView: mainView];
+	[window orderFront: self];
+	[window makeKey: self];
 
 	[window _setHidden: NO];
 
-	[table addTableColumn: col];
-	[table setDataSource: self];
-	[table setDelegate: self];
-	[table reloadData];
+	defaults = [NSUserDefaults standardUserDefaults];
+	NSLog(@"Defaults: %@", defaults);
 
-	[mainView addSubview: table];
+	haveSent = haveMiniToken = haveToken = haveNSID = FALSE;
 
-	[window orderFront: self];
-	[window makeKey: self];
-	[window setContentView: mainView];
+	[self setupDefaults];
+
+	if (!haveSent) {
+		[self sendToGrantPermission];
+	}
+
+	NSArray *photos = [self cameraRollPhotos];
+	for(int i = 0; i < [photos count]; i++) {
+		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
+	}
+
+	if (!haveToken) {
+		[self retrieveFullAuthToken];
+	}
+
+	NSArray *tags = [self flickrTags];
+	for(int i = 0; i < [tags count]; i++) {
+		NSLog(@"Tag found: %@", [tags objectAtIndex: i]);
+	}
 }
 
 @end
