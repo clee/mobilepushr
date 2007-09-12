@@ -1,5 +1,4 @@
-CC = arm-apple-darwin-gcc
-CXX = arm-apple-darwin-g++
+CC = arm-apple-darwin-cc
 LD = arm-apple-darwin-ld
 
 CFLAGS = -Wall -Werror -Wno-unused -std=c99
@@ -7,7 +6,7 @@ LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework Foundation -frame
 
 all: MobilePushr package
 
-MobilePushr: main.o MobilePushr.o PushrMiniToken.o
+MobilePushr: main.o MobilePushr.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 %.o: %.m

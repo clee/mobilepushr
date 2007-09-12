@@ -102,6 +102,7 @@
 -(void)setupDefaults
 {
 	// Insert code here. Later.
+	NSLog(@"Inside of the setupDefaults routine...");
 }
 
 -(NSString *)getMiniToken
@@ -166,7 +167,7 @@
 - (NSArray *)flickrTags
 {
 	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"user_id", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, FLICKR_USER_ID, nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TAGS, FLICKR_USER_ID, nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
 	NSURL *url = [self signedURL: params];
@@ -184,7 +185,7 @@
 	}
 #endif
 
-	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString]];
+	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
 	if (![[[e attributeForName:@"stat"] stringValue] isEqualToString: @"ok"]) {
 		NSLog(@"The status is not 'ok', and we have no error handling!");
 		return [NSArray array];
@@ -207,17 +208,11 @@
 	UIWindow *window = [[UIWindow alloc] initWithContentRect: [UIHardware fullScreenApplicationContentRect]];
 
 	struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
-	UIImageView *background = [[[UIImageView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
-	[background setImage:[UIImage defaultDesktopImage]];
+	UIImageView *background = [[[UIImageView alloc] initWithFrame: CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
+	[background setImage: [UIImage defaultDesktopImage]];
 
 	UIView *mainView = [[UIView alloc] initWithFrame: rect];
 	[mainView addSubview: background];
-
-	[window setContentView: mainView];
-	[window orderFront: self];
-	[window makeKey: self];
-
-	[window _setHidden: NO];
 
 	defaults = [NSUserDefaults standardUserDefaults];
 	NSLog(@"Defaults: %@", defaults);
@@ -225,6 +220,12 @@
 	haveSent = haveMiniToken = haveToken = haveNSID = FALSE;
 
 	[self setupDefaults];
+
+	[window setContentView: mainView];
+	[window orderFront: self];
+	[window makeKey: self];
+
+	[window _setHidden: NO];
 
 	if (!haveSent) {
 		[self sendToGrantPermission];
