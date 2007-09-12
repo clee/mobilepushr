@@ -137,14 +137,15 @@
  */
 -(void)retrieveFullAuthToken
 {
-        NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"mini_token", nil];
-        NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [self getMiniToken], nil];
-        NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
- 
-        NSURL *url = [self signedURL: params];
-       
-        // TODO: Add code to actually fetch the contents of the URL and then parse the token and user ID
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"mini_token", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [self getMiniToken], nil];
+	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
+
+	NSURL *url = [self signedURL: params];
+
+	// TODO: Add code to actually fetch the contents of the URL and then parse the token and user ID
 }
+
 
 - (NSArray *)cameraRollPhotos
 {
@@ -173,7 +174,7 @@
 	NSLog(@"Created NSData with contents of URL");
 	NSError *err = nil;
 
-	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 err: &err];
+	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 
 	NSXMLNode *rsp = [[responseDoc children] objectAtIndex: 0];
 #ifdef DEBUG_PARANOID
@@ -183,7 +184,7 @@
 	}
 #endif
 
-	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString];
+	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString]];
 	if (![[[e attributeForName:@"stat"] stringValue] isEqualToString: @"ok"]) {
 		NSLog(@"The status is not 'ok', and we have no error handling!");
 		return [NSArray array];
