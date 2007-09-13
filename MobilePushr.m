@@ -66,7 +66,7 @@
 
 @implementation MobilePushr
 
--(void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
+- (void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
 	BOOL shouldTerminate = FALSE;
 
@@ -88,7 +88,7 @@
 	}
 }
 
--(void)sendToGrantPermission
+- (void)sendToGrantPermission
 {
 	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
 	[alertSheet setTitle: @"Can't upload to Flickr"];
@@ -99,13 +99,13 @@
 	[alertSheet popupAlertAnimated: YES];
 }
 
--(void)setupDefaults
+- (void)setupDefaults
 {
 	// Insert code here. Later.
 	NSLog(@"Inside of the setupDefaults routine...");
 }
 
--(NSString *)getMiniToken
+- (NSString *)getMiniToken
 {
        // TODO: Make this actually prompt the user for the mini-token.
        return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
@@ -115,7 +115,7 @@
  * This method made possible by extending system classes (without having to 
  * inherit from them.) Hooray!
  */
--(NSURL *)signedURL: (NSDictionary *)parameters
+- (NSURL *)signedURL: (NSDictionary *)parameters
 {
         NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", FLICKR_REST_URL];
         NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
@@ -136,15 +136,49 @@
  * FLICKR_GET_TOKEN, and the mini-token provided by the user. This should
  * respond with a full authorization token, which we can store and re-use.
  */
--(void)retrieveFullAuthToken
+- (void)retrieveFullAuthToken
 {
 	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"mini_token", nil];
 	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [self getMiniToken], nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
 	NSURL *url = [self signedURL: params];
+	NSData *responseData = [NSData dataWithContentsOfURL: url];
+	NSError *err = nil;
 
-	// TODO: Add code to actually fetch the contents of the URL and then parse the token and user ID
+	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
+
+	NSXMLNode *rsp = [[responseDoc children] objectAtIndex: 0];
+#ifdef DEBUG_PARANOID
+	if (![[rsp name] isEqualToString: @"rsp"]) {
+		NSLog(@"This is not an <rsp> tag! Bailing out.");
+		return;
+	}
+#endif
+
+	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
+	if (![[[e attributeForName:@"stat"] stringValue] isEqualToString: @"ok"]) {
+		NSLog(@"The status is not 'ok', and we have no error handling!");
+		return;
+	}
+
+	NSMutableDictionary *flickrDict = [NSMutableDictionary dictionaryWithCapacity: 3];
+	NSArray *nodes = [[[e children] lastObject] children];
+	NSEnumerator *chain = [nodes objectEnumerator];
+	NSXMLNode *node = nil;
+	NSUserDefaults *settings = [NSUserDefaults standardUserDefaults];
+
+	while ((node = [chain nextObject])) {
+		if ([[node name] isEqualToString: @"token"]) {
+			[settings setObject: [node stringValue] forKey: @"token"];
+		} else if ([[node name] isEqualToString: @"user"]) {
+			id element = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [node XMLString] error: &err];
+			[settings setObject: [[element attributeForName: @"username"] stringValue] forKey: @"username"];
+			[settings setObject: [[element attributeForName: @"nsid"] stringValue] forKey: @"nsid"];
+		}
+	}
+
+	[settings synchronize];
 }
 
 
