@@ -97,25 +97,31 @@
 	[alertSheet addButtonWithTitle: @"Cancel"];
 	[alertSheet setDelegate: self];
 	[alertSheet popupAlertAnimated: YES];
-}
-
-- (void)loadConfiguration
-{
-	settings = [NSUserDefaults standardUserDefaults];
-	NSDictionary *args = [settings dictionaryRepresentation];
-	NSLog(@"Settings:\n %@", args);
-
-	if (![[args allKeys] containsObject: @"minitoken"]) {
-		fprintf(stderr, "You need to supply a '-minitoken' argument.\n");
-		[pool release];
-		return -1;
-	}
+	[settings setBool: YES forKey: @"sentToGetToken"];
 }
 
 - (NSString *)getMiniToken
 {
 	// TODO: Make this actually prompt the user for the mini-token.
 	return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
+}
+
+- (void)loadConfiguration
+{
+	settings = [NSUserDefaults standardUserDefaults];
+	NSDictionary *args = [settings dictionaryRepresentation];
+	NSArray *keys = [args allKeys];
+	NSLog(@"Settings:\n %@", args);
+
+	if (![keys containsObject: @"sentToGetToken"]) {
+		haveSent = FALSE;
+		[self sendToGrantPermission];
+	}
+	
+	if (![keys containsObject: @"miniToken"]) {
+		haveMiniToken = FALSE;
+		[settings setObject: [self getMiniToken] forKey: @"miniToken"];
+	}
 }
 
 /*
