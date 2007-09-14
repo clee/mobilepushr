@@ -99,16 +99,23 @@
 	[alertSheet popupAlertAnimated: YES];
 }
 
-- (void)setupDefaults
+- (void)loadConfiguration
 {
-	// Insert code here. Later.
-	NSLog(@"Inside of the setupDefaults routine...");
+	settings = [NSUserDefaults standardUserDefaults];
+	NSDictionary *args = [settings dictionaryRepresentation];
+	NSLog(@"Settings:\n %@", args);
+
+	if (![[args allKeys] containsObject: @"minitoken"]) {
+		fprintf(stderr, "You need to supply a '-minitoken' argument.\n");
+		[pool release];
+		return -1;
+	}
 }
 
 - (NSString *)getMiniToken
 {
-       // TODO: Make this actually prompt the user for the mini-token.
-       return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
+	// TODO: Make this actually prompt the user for the mini-token.
+	return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
 }
 
 /*
@@ -117,14 +124,14 @@
  */
 - (NSURL *)signedURL: (NSDictionary *)parameters
 {
-        NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", FLICKR_REST_URL];
-        NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
- 
-        [sig appendString: [[parameters pairsJoinedByString: @""] componentsJoinedByString: @""]];
-        [url appendString: [[parameters pairsJoinedByString: @"="] componentsJoinedByString: @"&"]];
-        [url appendString: [NSString stringWithFormat: @"&api_sig=%@", [sig md5HexHash]]];
- 
-        return [NSURL URLWithString: url];
+	NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", FLICKR_REST_URL];
+	NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
+
+	[sig appendString: [[parameters pairsJoinedByString: @""] componentsJoinedByString: @""]];
+	[url appendString: [[parameters pairsJoinedByString: @"="] componentsJoinedByString: @"&"]];
+	[url appendString: [NSString stringWithFormat: @"&api_sig=%@", [sig md5HexHash]]];
+
+	return [NSURL URLWithString: url];
 }
 
 /*
@@ -166,7 +173,6 @@
 	NSArray *nodes = [[[e children] lastObject] children];
 	NSEnumerator *chain = [nodes objectEnumerator];
 	NSXMLNode *node = nil;
-	NSUserDefaults *settings = [NSUserDefaults standardUserDefaults];
 
 	while ((node = [chain nextObject])) {
 		if ([[node name] isEqualToString: @"token"]) {
@@ -248,25 +254,22 @@
 	UIView *mainView = [[UIView alloc] initWithFrame: rect];
 	[mainView addSubview: background];
 
-	defaults = [NSUserDefaults standardUserDefaults];
-	NSLog(@"Defaults: %@", defaults);
-
 	haveSent = haveMiniToken = haveToken = haveNSID = FALSE;
-
-	[self setupDefaults];
 
 	[window setContentView: mainView];
 	[window orderFront: self];
 	[window makeKey: self];
-
 	[window _setHidden: NO];
+
+	[self loadConfiguration];
 
 	if (!haveSent) {
 		[self sendToGrantPermission];
 	}
 
+
 	NSArray *photos = [self cameraRollPhotos];
-	for(int i = 0; i < [photos count]; i++) {
+	for (int i = 0; i < [photos count]; i++) {
 		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
 	}
 
@@ -275,7 +278,7 @@
 	}
 
 	NSArray *tags = [self flickrTags];
-	for(int i = 0; i < [tags count]; i++) {
+	for (int i = 0; i < [tags count]; i++) {
 		NSLog(@"Tag found: %@", [tags objectAtIndex: i]);
 	}
 }

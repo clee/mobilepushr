@@ -4,6 +4,8 @@
 
 int main(int argc, char **argv)
 {
-    [[NSAutoreleasePool alloc] init];
-    return UIApplicationMain(argc, argv, [MobilePushr class]);
+	NSAutoreleasePool *pool = [NSAutoreleasePool new];
+	int ret = UIApplicationMain(argc, argv, [MobilePushr class]);
+	[pool release];
+	return ret;
 }
