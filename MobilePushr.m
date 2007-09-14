@@ -88,40 +88,13 @@
 	}
 }
 
-- (void)sendToGrantPermission
-{
-	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	[alertSheet setTitle: @"Can't upload to Flickr"];
-	[alertSheet setBodyText: @"This application needs your permission to upload pictures to Flickr."];
-	[alertSheet addButtonWithTitle: @"Proceed"];
-	[alertSheet addButtonWithTitle: @"Cancel"];
-	[alertSheet setDelegate: self];
-	[alertSheet popupAlertAnimated: YES];
-	[settings setBool: YES forKey: @"sentToGetToken"];
-}
-
+#pragma mark Flickr API
 - (NSString *)getMiniToken
 {
 	// TODO: Make this actually prompt the user for the mini-token.
-	return [NSString stringWithString: PUSHR_TEMP_AUTH_CODE];
-}
-
-- (void)loadConfiguration
-{
-	settings = [NSUserDefaults standardUserDefaults];
-	NSDictionary *args = [settings dictionaryRepresentation];
-	NSArray *keys = [args allKeys];
-	NSLog(@"Settings:\n %@", args);
-
-	if (![keys containsObject: @"sentToGetToken"]) {
-		haveSent = FALSE;
-		[self sendToGrantPermission];
-	}
-	
-	if (![keys containsObject: @"miniToken"]) {
-		haveMiniToken = FALSE;
-		[settings setObject: [self getMiniToken] forKey: @"miniToken"];
-	}
+	[settings setObject: PUSHR_TEMP_AUTH_CODE forKey: @"mini_token"];
+	haveMiniToken = TRUE;
+	return [NSString stringWithString: [settings stringForKey: @"mini_token"]];
 }
 
 /*
@@ -152,7 +125,7 @@
 - (void)retrieveFullAuthToken
 {
 	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"mini_token", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [self getMiniToken], nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [settings stringForKey: @"mini_token"], nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
 	NSURL *url = [self signedURL: params];
@@ -193,6 +166,41 @@
 	[settings synchronize];
 }
 
+#pragma mark MobilePushr Methods
+- (void)sendToGrantPermission
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Can't upload to Flickr"];
+	[alertSheet setBodyText: @"This application needs your permission to upload pictures to Flickr."];
+	[alertSheet addButtonWithTitle: @"Proceed"];
+	[alertSheet addButtonWithTitle: @"Cancel"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
+	[settings setBool: TRUE forKey: @"sentToGetToken"];
+}
+
+- (void)loadConfiguration
+{
+	settings = [NSUserDefaults standardUserDefaults];
+	NSDictionary *args = [settings dictionaryRepresentation];
+	NSArray *keys = [args allKeys];
+	NSLog(@"Settings:\n %@", args);
+
+	if (![keys containsObject: @"sentToGetToken"]) {
+		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
+		[self sendToGrantPermission];
+	}
+
+	if (![keys containsObject: @"mini_token"]) {
+		NSLog(@"We sent the user to Flickr, and they should have a mini_token. Make them input it.");
+		[settings setObject: [self getMiniToken] forKey: @"mini_token"];
+	}
+
+	if (![keys containsObject: @"token"]) {
+		NSLog(@"We have a mini_token - trade it in for a full token and the user's NSID and name");
+		[self retrieveFullAuthToken];
+	}
+}
 
 - (NSArray *)cameraRollPhotos
 {
@@ -260,8 +268,6 @@
 	UIView *mainView = [[UIView alloc] initWithFrame: rect];
 	[mainView addSubview: background];
 
-	haveSent = haveMiniToken = haveToken = haveNSID = FALSE;
-
 	[window setContentView: mainView];
 	[window orderFront: self];
 	[window makeKey: self];
@@ -269,18 +275,9 @@
 
 	[self loadConfiguration];
 
-	if (!haveSent) {
-		[self sendToGrantPermission];
-	}
-
-
 	NSArray *photos = [self cameraRollPhotos];
 	for (int i = 0; i < [photos count]; i++) {
 		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
-	}
-
-	if (!haveToken) {
-		[self retrieveFullAuthToken];
 	}
 
 	NSArray *tags = [self flickrTags];

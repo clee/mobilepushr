@@ -26,7 +26,6 @@
 @class UIPreferencesTableCell, UITableCell;
 
 @interface MobilePushr: UIApplication {
-	BOOL haveSent, haveMiniToken, haveToken, haveNSID;
 	NSUserDefaults *settings;
 	UIPreferencesTableCell *prefCell;
 	UITableCell *buttonCell;
