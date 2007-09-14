@@ -1,4 +1,4 @@
-CC = arm-apple-darwin-cc
+CC = arm-apple-darwin-gcc
 LD = arm-apple-darwin-ld
 
 CFLAGS = -Wall -Werror -Wno-unused -std=c99
