@@ -15,6 +15,9 @@
 #import <UIKit/UIView-Hierarchy.h>
 #import <UIKit/UIView-Rendering.h>
 #import <UIKit/UIWindow.h>
+#import <UIKit/UITextField.h>
+#import <UIKit/UITextTraits.h>
+#import <UIKit/UIAlertSheet.h>
 #import <UIKit/UIValueButton.h>
 
 #include <stdio.h>
@@ -72,7 +75,6 @@
 
 	switch (button) {
 		case 1: {
-			haveSent = TRUE;
 			[self openURL: [NSURL URLWithString: PUSHR_AUTH_URL]];
 			break;
 		}
@@ -93,7 +95,6 @@
 {
 	// TODO: Make this actually prompt the user for the mini-token.
 	[settings setObject: PUSHR_TEMP_AUTH_CODE forKey: @"mini_token"];
-	haveMiniToken = TRUE;
 	return [NSString stringWithString: [settings stringForKey: @"mini_token"]];
 }
 
@@ -179,6 +180,18 @@
 	[settings setBool: TRUE forKey: @"sentToGetToken"];
 }
 
+- (void)showCustomAlertSheet
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Flickr authentication"];
+	[alertSheet addTextFieldWithValue: @"" label: @"Enter mini-token"];
+	[[alertSheet textField] setPreferredKeyboardType: 7];
+	[alertSheet addButtonWithTitle: @"Proceed"];
+	[alertSheet addButtonWithTitle: @"Cancel"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
+}
+
 - (void)loadConfiguration
 {
 	settings = [NSUserDefaults standardUserDefaults];
@@ -259,9 +272,9 @@
 
 - (void) applicationDidFinishLaunching: (id) unused
 {
-	UIWindow *window = [[UIWindow alloc] initWithContentRect: [UIHardware fullScreenApplicationContentRect]];
-
 	struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
+
+	UIWindow *window = [[UIWindow alloc] initWithContentRect: rect];
 	UIImageView *background = [[[UIImageView alloc] initWithFrame: CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
 	[background setImage: [UIImage defaultDesktopImage]];
 
@@ -274,16 +287,20 @@
 	[window _setHidden: NO];
 
 	[self loadConfiguration];
+	
+	[self showCustomAlertSheet];
 
+/*
 	NSArray *photos = [self cameraRollPhotos];
 	for (int i = 0; i < [photos count]; i++) {
 		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
 	}
-
+	
 	NSArray *tags = [self flickrTags];
 	for (int i = 0; i < [tags count]; i++) {
 		NSLog(@"Tag found: %@", [tags objectAtIndex: i]);
 	}
+ */
 }
 
 @end
