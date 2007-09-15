@@ -1,3 +1,4 @@
+PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/opt/local/bin
 CC = arm-apple-darwin-gcc
 LD = arm-apple-darwin-ld
 
@@ -6,7 +7,7 @@ LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework Foundation -frame
 
 all: MobilePushr package
 
-MobilePushr: main.o MobilePushr.o
+MobilePushr: main.o MobilePushr.o FlickrCategory.o Flickr.o
 	@echo -n "Linking $@... "
 	@$(CC) $(LDFLAGS) -o $@ $^
 	@echo "done."
@@ -23,6 +24,7 @@ package: MobilePushr
 	@cp MobilePushr Pushr.app/MobilePushr
 	@cp Info.plist Pushr.app/Info.plist
 	@cp icon.png Pushr.app/icon.png
+	@cp Default.png Pushr.app/Default.png
 	@echo "done."
 
 clean:
