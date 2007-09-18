@@ -32,7 +32,8 @@
 
 - (id)initWithPushr: (MobilePushr *)pushr;
 
-- (void)retrieveAuthToken;
+- (void)sendToGrantPermission;
+- (void)tradeFrobForToken;
 - (void)checkToken;
 
 - (NSURL *)signedURL: (NSDictionary *)parameters;

@@ -4,28 +4,36 @@
 #import <GraphicsServices/GraphicsServices.h>
 #import <UIKit/CDStructures.h>
 #import <UIKit/UIKit.h>
+#import <UIKit/UIPushButton.h>
+#import <UIKit/UIPushButton-Original.h>
+#import <UIKit/UIControl.h>
 #import <UIKit/UITableCell.h>
 #import <UIKit/UIPreferencesTableCell.h>
 #import <UIKit/UIHardware.h>
 #import <UIKit/UIImage.h>
 #import <UIKit/UIImageView.h>
 #import <UIKit/UIView.h>
-#import <UIKit/UIView-Hierarchy.h>
-#import <UIKit/UIView-Rendering.h>
 #import <UIKit/UIWindow.h>
 #import <UIKit/UITextField.h>
 #import <UIKit/UITextTraits.h>
 #import <UIKit/UIAlertSheet.h>
 #import <UIKit/UIValueButton.h>
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
+#import <UIKit/UIView-Hierarchy.h>
+#import <UIKit/UIView-Rendering.h>
+#import <UIKit/UIThreePartButton.h>
+#import <UIKit/UIThreePartImageView.h>
 
 #import "MobilePushr.h"
 #import "Flickr.h"
 
+typedef enum {
+    kUIControlEventMouseDown = 1 << 0,
+    kUIControlEventMouseMovedInside = 1 << 2, // mouse moved inside control target
+    kUIControlEventMouseMovedOutside = 1 << 3, // mouse moved outside control target
+    kUIControlEventMouseUpInside = 1 << 6, // mouse up inside control target
+    kUIControlEventMouseUpOutside = 1 << 7, // mouse up outside control target
+    kUIControlAllEvents = (kUIControlEventMouseDown | kUIControlEventMouseMovedInside | kUIControlEventMouseMovedOutside | kUIControlEventMouseUpInside | kUIControlEventMouseUpOutside)
+} UIControlEventMasks;
 
 @implementation MobilePushr
 
@@ -46,43 +54,38 @@
 }
 
 #pragma mark MobilePushr Methods
-- (void)sendToGrantPermission
+
+- (void)popupFailureAlertSheet
 {
 	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	NSLog(@"Alert sheet style: %d", [alertSheet alertSheetStyle]);
-	[alertSheet setTitle: @"Can't upload to Flickr"];
-	[alertSheet setBodyText: @"Pushr needs your permission to upload pictures to Flickr."];
-	[alertSheet addButtonWithTitle: @"Proceed"];
-	[alertSheet addButtonWithTitle: @"Cancel"];
-	[alertSheet setDelegate: _flickr];
+	[alertSheet setTitle: @"Bad news, everyone"];
+	[alertSheet setBodyText: @"Somewhere, there's a leak in the pipes, and this application's not Plumbr..."];
+	[alertSheet addButtonWithTitle: @"Accept"];
+	[alertSheet setDelegate: self];
 	[alertSheet popupAlertAnimated: YES];
-	NSLog(@"Alert sheet style: %d", [alertSheet alertSheetStyle]);
-	[_settings setBool: TRUE forKey: @"sentToGetToken"];
 }
 
 - (void)loadConfiguration
 {
 	_flickr = [[Flickr alloc] initWithPushr: self];
 	_settings = [NSUserDefaults standardUserDefaults];
-	NSDictionary *args = [_settings dictionaryRepresentation];
-	NSArray *keys = [args allKeys];
-	NSLog(@"Settings:\n %@", args);
 
-	if (![keys containsObject: @"sentToGetToken"]) {
+	if ([_settings boolForKey: @"sentToGetToken"] != TRUE) {
 		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
-		[self sendToGrantPermission];
+		[_flickr sendToGrantPermission];
+		return;
 	}
 
-	if ([keys containsObject: @"frob"]) {
+	if ([_settings stringForKey: @"frob"] != nil) {
 		NSLog(@"We had a frob - trade it in for a token, the user's NSID, and username.");
-		[_flickr retrieveAuthToken];
+		[_flickr tradeFrobForToken];
 	}
-	
-	if ([keys containsObject: @"token"]) {
+
+	if ([_settings stringForKey: @"token"] != nil) {
 		NSLog(@"We have a token - test it to make sure it works.");
 		[_flickr checkToken];
 	}
-	
+
 	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
 }
 
@@ -102,23 +105,107 @@
 	return [NSArray arrayWithArray: photos];
 }
 
-- (void) applicationDidFinishLaunching: (id) unused
+- (void)buttonPressed
 {
-	NSLog(@"Default image = %@", [self createApplicationDefaultPNG]);
-	struct CGRect rect = [UIHardware fullScreenApplicationContentRect];
+	NSLog(@"This is where we would start uploading shit.");
+	[_button setEnabled: NO];
+	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton_inactive.png"]];
+	id mainView = [_button superview];
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
+	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+}
 
-	UIWindow *window = [[UIWindow alloc] initWithContentRect: rect];
-	UIImageView *background = [[[UIImageView alloc] initWithFrame: CGRectMake(0.0f, 0.0f, rect.size.width, rect.size.height)] autorelease];
-	[background setImage: [UIImage defaultDesktopImage]];
+- (void)loadUI
+{
+	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
+	UIWindow *window = [[UIWindow alloc] initWithContentRect: hwRect];
 
-	UIView *mainView = [[UIView alloc] initWithFrame: rect];
-	[mainView addSubview: background];
+	struct CGRect appRect = CGRectMake(0.0f, 0.0f, hwRect.size.width, hwRect.size.height);
+	UIView *mainView = [[UIView alloc] initWithFrame: appRect];
 
-	[window setContentView: mainView];
+	// float bgColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	// float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	// [mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), bgColor)];
+
 	[window orderFront: self];
 	[window makeKey: self];
+	[window setContentView: mainView];
 	[window _setHidden: NO];
 
+	UIImageView *background = [[UIImageView alloc] initWithFrame: CGRectMake(0.0f, (-hwRect.origin.y), hwRect.size.width, hwRect.size.height + hwRect.origin.y)];
+	[background setImage: [UIImage defaultDesktopImage]];
+	[background setAlpha: 0.0f];
+	[mainView addSubview: background];
+
+	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
+	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
+	[topBar setBarStyle: 1];
+	[mainView addSubview: topBar];
+
+	UINavigationItem *topBarTitle = [[UINavigationItem alloc] initWithTitle: @"Pushr"];
+	GSFontRef titleFont = GSFontCreateWithName("Helvetica", kGSFontTraitBold, 24.0f);
+	[topBarTitle setFont: titleFont];
+	CFRelease(titleFont);
+
+	struct CGRect botBarRect = CGRectMake(0.0f, (appRect.size.height - 96.0f), appRect.size.width, 96.0f);
+	UIThreePartImageView *bottomBar = [[UIThreePartImageView alloc] initWithFrame: botBarRect];
+	[bottomBar setImage: [UIImage imageNamed: @"bottombar.png"]];
+	CDAnonymousStruct4 barSlices = {
+		.left   = { .origin = { .x =  0.0f, .y = 0.0f }, .size = { .width = 2.0f, .height = 96.0f } },
+		.middle = { .origin = { .x =  2.0f, .y = 0.0f }, .size = { .width = 2.0f, .height = 96.0f } },
+		.right  = { .origin = { .x =  4.0f, .y = 0.0f }, .size = { .width = 2.0f, .height = 96.0f } },
+	};
+	[bottomBar setSlices: barSlices];
+	[bottomBar setAlpha: 0.75f];
+	[mainView addSubview: bottomBar];
+
+	_button = [[[UIThreePartButton alloc] initWithTitle: @"Push to Flickr" autosizesToFit: YES] autorelease];
+
+	GSFontRef buttonFont = GSFontCreateWithName("Helvetica", kGSFontTraitBold, 22.0f);
+	[_button setTitleFont: buttonFont];
+	CFRelease(buttonFont);
+
+	struct CGRect buttonRect = CGRectMake(20.0f, (appRect.size.height - 74.0f), appRect.size.width - 40.0f, 52.0f);
+	[_button setFrame: buttonRect];
+	[_button setPressedBackgroundImage: [UIImage imageNamed: @"mainbutton_pressed.png"]];
+	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
+	// [_button setImage:[UIImage imageNamed:@"refresh.png"]];
+
+	// Pieces as deduced from the ChooseAudioPhone PNG from MobilePhone.app
+	CDAnonymousStruct4 buttonPieces = {
+		.left   = { .origin = { .x =  0.0f, .y = 0.0f }, .size = { .width = 14.0f, .height = 52.0f } },
+		.middle = { .origin = { .x = 15.0f, .y = 0.0f }, .size = { .width =  2.0f, .height = 52.0f } },
+		.right  = { .origin = { .x = 17.0f, .y = 0.0f }, .size = { .width = 14.0f, .height = 52.0f } },
+	};
+
+	[_button setBackgroundSlices: buttonPieces];
+
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
+	[_button setShadowColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	[_button setShadowOffset: -1.0f];
+	[_button setDrawsShadow: YES];
+
+	[_button addTarget: self action: @selector(buttonPressed) forEvents: kUIControlEventMouseUpInside];
+	[_button setDrawContentsCentered: YES];
+	[_button setEnabled: YES];
+
+	[mainView addSubview: _button];
+
+	[UIView beginAnimations: nil];
+	[UIView setAnimationCurve: kUIAnimationCurveEaseIn];
+	[UIView setAnimationDuration: 1.0];
+
+	[background setAlpha: 1.0f];
+
+	[topBar pushNavigationItem: topBarTitle];
+	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
+	[UIView endAnimations];
+
+}
+
+- (void) applicationDidFinishLaunching: (id) unused
+{
+	[self loadUI];
 	[self loadConfiguration];
 
 /*

@@ -2,6 +2,8 @@
 #import <UIKit/UIKit.h>
 #import "MobilePushr.h"
 
+#include <stdio.h>
+
 int main(int argc, char **argv)
 {
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];

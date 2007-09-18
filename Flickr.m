@@ -26,7 +26,6 @@
 
 	_pushr = [pushr retain];
 	_settings = [NSUserDefaults standardUserDefaults];
-	NSLog(@"Flickr: grabbed settings");
 
 	return self;
 }
@@ -38,7 +37,7 @@
 
 	switch (button) {
 		case 1:
-			[_pushr openURL: [self authURL] asPanel: YES];
+			[_pushr openURL: [self authURL]];
 			break;
 		default:
 			shouldTerminate = YES;
@@ -50,6 +49,17 @@
 		[_pushr terminate];
 }
 
+- (void)sendToGrantPermission
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Can't upload to Flickr"];
+	[alertSheet setBodyText: @"Pushr needs your permission to upload pictures to Flickr."];
+	[alertSheet addButtonWithTitle: @"Proceed"];
+	[alertSheet addButtonWithTitle: @"Cancel"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
+	[_settings setBool: TRUE forKey: @"sentToGetToken"];
+}
 
 - (BOOL)sanityCheck: (id)responseDocument error: (NSError *)err
 {
@@ -68,16 +78,6 @@
 	return TRUE;
 }
 
-- (void)popupFailureAlertSheet
-{
-	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	[alertSheet setTitle: @"Bad news, everyone"];
-	[alertSheet setBodyText: @"Somewhere, there's a leak in the pipes, and this application's not Plumbr..."];
-	[alertSheet addButtonWithTitle: @"Accept"];
-	[alertSheet setDelegate: _pushr];
-	[alertSheet popupAlertAnimated: YES];
-}
-
 /*
  * Get a frob from Flickr, to put in the URL that we send the user to to get their permission to upload pics.
  */
@@ -94,7 +94,7 @@
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Failed the sanity check getting the frob. Bailing!");
-		[self popupFailureAlertSheet];
+		[_pushr popupFailureAlertSheet];
 		return nil;
 	}
 
@@ -102,11 +102,12 @@
 	
 	if (![[node name] isEqualToString: @"frob"]) {
 		NSLog(@"We got an 'ok' response but no frob...");
-		[self popupFailureAlertSheet];
+		[_pushr popupFailureAlertSheet];
 		return nil;
 	}
 	
 	[_settings setObject: [node stringValue] forKey: @"frob"];
+	[_settings synchronize];
 
 	return [NSString stringWithString: [node stringValue]];
 }
@@ -143,8 +144,9 @@
 }
 
 /*
+ * We have a frob that Flickr generated, and we used it in the URL we sent the user to (so that they could give us permission to upload pictures to their account). Now, we assume the user clicked on the 'Okay!' button the page we sent them to go click, and our frob can now be traded for a token.
  */
-- (void)retrieveAuthToken
+- (void)tradeFrobForToken
 {
 	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"frob", nil];
 	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TOKEN, [_settings stringForKey: @"frob"], nil];
@@ -156,7 +158,7 @@
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Failed the sanity check getting the token. Bailing!");
-		[self popupFailureAlertSheet];
+		[_pushr popupFailureAlertSheet];
 		return;
 	}
 
@@ -174,13 +176,14 @@
 		}
 	}
 
+	[_settings removeObjectForKey: @"frob"];
 	[_settings synchronize];
 }
 
 - (void)checkToken
 {
-	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"perms", @"method", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_WRITE_PERMS, FLICKR_CHECK_TOKEN, nil];
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"auth_token", @"method", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, [_settings stringForKey: @"token"], FLICKR_CHECK_TOKEN, nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 	NSData *responseData = [NSData dataWithContentsOfURL: [self signedURL: params]];
 	NSError *err = nil;
@@ -188,13 +191,12 @@
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Failed the sanity check when verifying our token. Bailing!");
-		[self popupFailureAlertSheet];
+		[_settings setBool: FALSE forKey: @"sentToGetToken"];
+		[_pushr popupFailureAlertSheet];
 		return;
 	}
-	
-	NSLog(@"Well, our token seems good for now.");
-	if ([[[_settings dictionaryRepresentation] allKeys] containsObject: @"frob"])
-		[_settings setObject: nil forKey: @"frob"];
+
+	NSLog(@"Well, our token seems good.");
 }
 
 /*
@@ -214,7 +216,7 @@
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Failed the sanity check when verifying our tags. Bailing!");
-		[self popupFailureAlertSheet];
+		[_pushr popupFailureAlertSheet];
 		return [NSArray array];
 	}
 

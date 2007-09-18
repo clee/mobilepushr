@@ -7,8 +7,9 @@
 {
 	NSUserDefaults *_settings;
 	Flickr *_flickr;
-	UIPreferencesTableCell *prefCell;
-	UITableCell *buttonCell;
+	UIThreePartButton *_button;
 }
+
+- (void)popupFailureAlertSheet;
 
 @end
