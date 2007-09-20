@@ -18,6 +18,9 @@
 #define FLICKR_WRITE_PERMS @"write"
 
 
+#define MIME_BOUNDARY "----16c17a9ea1d7b327e7489190e394d411----"
+#define CONTENT_TYPE "multipart/form-data; boundary=" MIME_BOUNDARY
+
 #import <Foundation/Foundation.h>
 
 #import "FlickrCategory.h"

@@ -14,6 +14,7 @@
 #import <UIKit/UIImageView.h>
 #import <UIKit/UIView.h>
 #import <UIKit/UIWindow.h>
+#import <UIKit/UIProgressBar.h>
 #import <UIKit/UITextField.h>
 #import <UIKit/UITextTraits.h>
 #import <UIKit/UIAlertSheet.h>
@@ -55,40 +56,6 @@ typedef enum {
 
 #pragma mark MobilePushr Methods
 
-- (void)popupFailureAlertSheet
-{
-	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	[alertSheet setTitle: @"Bad news, everyone"];
-	[alertSheet setBodyText: @"Somewhere, there's a leak in the pipes, and this application's not Plumbr..."];
-	[alertSheet addButtonWithTitle: @"Accept"];
-	[alertSheet setDelegate: self];
-	[alertSheet popupAlertAnimated: YES];
-}
-
-- (void)loadConfiguration
-{
-	_flickr = [[Flickr alloc] initWithPushr: self];
-	_settings = [NSUserDefaults standardUserDefaults];
-
-	if ([_settings boolForKey: @"sentToGetToken"] != TRUE) {
-		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
-		[_flickr sendToGrantPermission];
-		return;
-	}
-
-	if ([_settings stringForKey: @"frob"] != nil) {
-		NSLog(@"We had a frob - trade it in for a token, the user's NSID, and username.");
-		[_flickr tradeFrobForToken];
-	}
-
-	if ([_settings stringForKey: @"token"] != nil) {
-		NSLog(@"We have a token - test it to make sure it works.");
-		[_flickr checkToken];
-	}
-
-	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
-}
-
 - (NSArray *)cameraRollPhotos
 {
 	NSString *jpg;
@@ -105,27 +72,23 @@ typedef enum {
 	return [NSArray arrayWithArray: photos];
 }
 
-- (void)buttonPressed
+- (void)popupFailureAlertSheet
 {
-	NSLog(@"This is where we would start uploading shit.");
-	[_button setEnabled: NO];
-	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton_inactive.png"]];
-	id mainView = [_button superview];
-	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
-	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Bad news, everyone"];
+	[alertSheet setBodyText: @"Somewhere, there's a leak in the pipes, and this application's not Plumbr..."];
+	[alertSheet addButtonWithTitle: @"Accept"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
 }
 
-- (void)loadUI
+- (void)loadUserInterface
 {
 	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
 	UIWindow *window = [[UIWindow alloc] initWithContentRect: hwRect];
 
 	struct CGRect appRect = CGRectMake(0.0f, 0.0f, hwRect.size.width, hwRect.size.height);
 	UIView *mainView = [[UIView alloc] initWithFrame: appRect];
-
-	// float bgColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	// float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	// [mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), bgColor)];
 
 	[window orderFront: self];
 	[window makeKey: self];
@@ -200,12 +163,75 @@ typedef enum {
 	[topBar pushNavigationItem: topBarTitle];
 	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
 	[UIView endAnimations];
-
 }
 
-- (void) applicationDidFinishLaunching: (id) unused
+- (void)loadConfiguration
 {
-	[self loadUI];
+	_settings = [NSUserDefaults standardUserDefaults];
+	_flickr = [[Flickr alloc] initWithPushr: self];
+
+	if ([_settings boolForKey: @"sentToGetToken"] != TRUE) {
+		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
+		[_flickr sendToGrantPermission];
+		return;
+	}
+
+	if ([_settings stringForKey: @"frob"] != nil) {
+		NSLog(@"We had a frob - trade it in for a token, the user's NSID, and username.");
+		[_flickr tradeFrobForToken];
+	}
+
+	if ([_settings stringForKey: @"token"] != nil) {
+		NSLog(@"We have a token - test it to make sure it works.");
+		[_flickr checkToken];
+	}
+
+	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
+}
+
+- (void)buttonPressed
+{
+	NSLog(@"This is where we would start uploading shit.");
+	[_button setEnabled: NO];
+	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton_inactive.png"]];
+	id mainView = [_button superview];
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
+	float transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
+	_label = [[UITextLabel alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 60.0f, hwRect.size.width - 40.0f, 20.0f)];
+	[_label setText: @"Please Wait"];
+	[_label setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), transparent)];
+	[_label setColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), white)];
+	[_label setCentersHorizontally: YES];
+	[mainView addSubview: _label];
+
+	_progress = [[UIProgressBar alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 80.0f, hwRect.size.width - 40.0f, 60.0f)];
+	[_progress setProgress: 0];
+	[_progress setStyle: 0];
+	[mainView addSubview: _progress];
+
+	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: nil];
+}
+
+- (void)updateProgress: (NSNumber *)currentProgress
+{
+	[_progress setProgress: [currentProgress floatValue]];
+}
+
+- (void)allDone: (NSArray *)responses
+{
+	id mainView = [_button superview];
+	[_progress removeFromSuperview];
+	[_label removeFromSuperview];
+	[_button setEnabled: YES];
+	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
+}
+
+- (void)applicationDidFinishLaunching: (id) unused
+{
+	[self loadUserInterface];
 	[self loadConfiguration];
 
 /*

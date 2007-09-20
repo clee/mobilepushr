@@ -91,7 +91,7 @@ void uploadPictureToFlickr(NSString *pathToJPG)
 		cfSize = NULL;
 		if (bytesWritten > previousBytesWritten) {
 			previousBytesWritten = bytesWritten;
-			fprintf(stderr, "(%d bytes written / %d total bytes) = %f %%\r", bytesWritten, bodyLength, (100.0f * ((float)bytesWritten/(float)bodyLength)));
+			fprintf(stderr, "(%lu bytes written / %lu total bytes) = %f %%\r", bytesWritten, bodyLength, (100.0f * ((float)bytesWritten/(float)bodyLength)));
 			fflush(stderr);
 		}
 

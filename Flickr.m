@@ -10,6 +10,8 @@
 #import "Flickr.h"
 #import "MobilePushr.h"
 
+#include <unistd.h>
+
 @class NSXMLNode, NSXMLElement, NSXMLDocument;
 
 @implementation Flickr
@@ -21,7 +23,7 @@
 
 	[_pushr release];
 	[_settings release];
-	
+
 	NSLog(@"Flickr: Released things that may not have even been initialized!");
 
 	_pushr = [pushr retain];
@@ -163,9 +165,9 @@
 	}
 
 	NSArray *nodes = [[[[[responseDoc children] lastObject] children] lastObject] children];
+
 	NSEnumerator *chain = [nodes objectEnumerator];
 	NSXMLNode *node = nil;
-
 	while ((node = [chain nextObject])) {
 		if ([[node name] isEqualToString: @"token"]) {
 			[_settings setObject: [node stringValue] forKey: @"token"];
@@ -192,11 +194,123 @@
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Failed the sanity check when verifying our token. Bailing!");
 		[_settings setBool: FALSE forKey: @"sentToGetToken"];
-		[_pushr popupFailureAlertSheet];
+		[self sendToGrantPermission];
 		return;
 	}
 
 	NSLog(@"Well, our token seems good.");
+}
+
+- (NSString *)uploadPicture: (NSString *)pathToJPG
+{
+	NSString *token = [_settings stringForKey: @"token"];
+	NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys: PUSHR_API_KEY, @"api_key", token, @"auth_token", nil];
+	NSArray *pairs = [params pairsJoinedByString: @""];
+	NSString *api_sig = [NSString stringWithFormat: @"%@%@", PUSHR_SHARED_SECRET, [pairs componentsJoinedByString: @""]];
+	[params setObject: [api_sig md5HexHash] forKey: @"api_sig"];
+	[params setObject: [NSData dataWithContentsOfFile: pathToJPG] forKey: @"photo"];
+
+	NSMutableData *body = [[NSMutableData alloc] initWithLength: 0];
+	[body appendData: [[[[NSString alloc] initWithFormat: @"--%@\r\n", @MIME_BOUNDARY] autorelease] dataUsingEncoding: NSUTF8StringEncoding]];
+
+	NSEnumerator *enumerator = [params keyEnumerator];
+	id key = nil;
+	while ((key = [enumerator nextObject])) {
+		id val = [params objectForKey: key];
+		id keyHeader = nil;
+		if ([key isEqualToString: @"photo"]) {
+			// If this is the photo...
+			keyHeader = [[NSString stringWithFormat: @"Content-Disposition: form-data; name=\"photo\"; filename=\"%@\"\r\nContent-Type: image/jpeg\r\n\r\n", pathToJPG] dataUsingEncoding: NSUTF8StringEncoding];
+			[body appendData: keyHeader];
+			[body appendData: val];
+		} else {
+			// Treat all other values as strings.
+			keyHeader = [NSString stringWithFormat: @"Content-Disposition: form-data; name=\"%@\"\r\n\r\n", key];
+			[body appendData: [keyHeader dataUsingEncoding: NSUTF8StringEncoding]];
+			[body appendData: [val dataUsingEncoding: NSUTF8StringEncoding]];			
+		}
+		[body appendData: [[NSString stringWithFormat: @"\r\n--%@\r\n", @MIME_BOUNDARY] dataUsingEncoding: NSUTF8StringEncoding]];
+	}
+
+	[body appendData: [[NSString stringWithString: @"--\r\n"] dataUsingEncoding: NSUTF8StringEncoding]];
+	long bodyLength = [body length];
+
+	CFURLRef uploadURL = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)FLICKR_UPLOAD_URL, NULL);
+	CFHTTPMessageRef _request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("POST"), uploadURL, kCFHTTPVersion1_1);
+	CFRelease(uploadURL);
+	uploadURL = NULL;
+
+	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Type"), CFSTR(CONTENT_TYPE));
+	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Host"), CFSTR("api.flickr.com"));
+	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Length"), (CFStringRef)[NSString stringWithFormat: @"%d", bodyLength]);
+	CFHTTPMessageSetBody(_request, (CFDataRef)body);
+	[body release];
+
+	CFReadStreamRef _readStream = CFReadStreamCreateForHTTPRequest(kCFAllocatorDefault, _request);
+	CFReadStreamOpen(_readStream);
+
+	NSMutableString *responseString = [NSMutableString string];
+	CFIndex numBytesRead;
+	long bytesWritten, previousBytesWritten = 0;
+	UInt8 buf[1024];
+	BOOL doneUploading = NO;
+
+	while (!doneUploading) {
+		CFNumberRef cfSize = CFReadStreamCopyProperty(_readStream, kCFStreamPropertyHTTPRequestBytesWrittenCount);
+		CFNumberGetValue(cfSize, kCFNumberLongType, &bytesWritten);
+		CFRelease(cfSize);
+		cfSize = NULL;
+		if (bytesWritten > previousBytesWritten) {
+			previousBytesWritten = bytesWritten;
+			NSNumber *progress = [NSNumber numberWithFloat: ((float)bytesWritten / (float)bodyLength)];
+			[_pushr performSelectorOnMainThread: @selector(updateProgress:)  withObject: progress waitUntilDone: YES];
+		}
+
+		if (!CFReadStreamHasBytesAvailable(_readStream)) {
+			usleep(3600);
+			continue;
+		}
+
+		numBytesRead = CFReadStreamRead(_readStream, buf, 1024);
+		[responseString appendFormat: @"%s", buf];
+
+		if (CFReadStreamGetStatus(_readStream) == kCFStreamStatusAtEnd) doneUploading = YES;
+	}
+#if 0
+	CFHTTPMessageRef _responseHeaderRef = (CFHTTPMessageRef)CFReadStreamCopyProperty(_readStream, kCFStreamPropertyHTTPResponseHeader);
+	NSDictionary *_responseHeaders = (NSDictionary *)CFHTTPMessageCopyAllHeaderFields(_responseHeaderRef);
+	NSLog(@"Header data was: \n---\n%@\n---\n", _responseHeaders);
+	CFRelease(_responseHeaderRef);
+	_responseHeaderRef = NULL;
+#endif
+
+	CFReadStreamClose(_readStream);
+	CFRelease(_request);
+	_request = NULL;
+	CFRelease(_readStream);
+	_readStream = NULL;
+
+	return [NSString stringWithString: responseString];
+}
+
+-(void)triggerUpload: (id)unused
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSArray *photos = [_pushr cameraRollPhotos];
+	NSMutableArray *responses = [NSMutableArray array];
+
+	NSEnumerator *enumerator = [photos objectEnumerator];
+	id photo = nil;
+	while ((photo = [enumerator nextObject])) {
+		int currentPhotoIndex = [[[[photo componentsSeparatedByString: @"/"] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
+		if ([_settings integerForKey: @"lastPushedPhotoIndex"] < currentPhotoIndex) {
+			[responses addObject: [self uploadPicture: photo]];
+			[_settings setInteger: currentPhotoIndex forKey: @"lastPushedPhotoIndex"];
+		}
+	}
+
+	[_pushr performSelectorOnMainThread: @selector(allDone:) withObject: responses waitUntilDone: YES];
+	[pool release];
 }
 
 /*

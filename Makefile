@@ -3,7 +3,7 @@ CC = arm-apple-darwin-gcc
 LD = arm-apple-darwin-ld
 
 CFLAGS = -Wall -Werror -Wno-unused -std=c99
-LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework Foundation -framework UIKit -framework LayerKit -framework GraphicsServices -framework CoreGraphics -framework OfficeImport
+LDFLAGS = -lcrypto -lobjc -framework CoreFoundation -framework CFNetwork -framework Foundation -framework UIKit -framework LayerKit -framework GraphicsServices -framework CoreGraphics -framework OfficeImport
 
 all: MobilePushr package
 
