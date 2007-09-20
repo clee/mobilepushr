@@ -95,10 +95,15 @@ typedef enum {
 	[window setContentView: mainView];
 	[window _setHidden: NO];
 
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+
+#if 0
 	UIImageView *background = [[UIImageView alloc] initWithFrame: CGRectMake(0.0f, (-hwRect.origin.y), hwRect.size.width, hwRect.size.height + hwRect.origin.y)];
 	[background setImage: [UIImage defaultDesktopImage]];
 	[background setAlpha: 0.0f];
 	[mainView addSubview: background];
+#endif
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
@@ -143,7 +148,6 @@ typedef enum {
 
 	[_button setBackgroundSlices: buttonPieces];
 
-	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
 	[_button setShadowColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
 	[_button setShadowOffset: -1.0f];
 	[_button setDrawsShadow: YES];
@@ -158,7 +162,7 @@ typedef enum {
 	[UIView setAnimationCurve: kUIAnimationCurveEaseIn];
 	[UIView setAnimationDuration: 1.0];
 
-	[background setAlpha: 1.0f];
+	// [background setAlpha: 1.0f];
 
 	[topBar pushNavigationItem: topBarTitle];
 	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
