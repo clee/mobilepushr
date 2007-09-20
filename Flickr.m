@@ -159,8 +159,10 @@
 
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 	if (![self sanityCheck: responseDoc error: err]) {
-		NSLog(@"Failed the sanity check getting the token. Bailing!");
-		[_pushr popupFailureAlertSheet];
+		NSLog(@"Failed the sanity check getting the token. The user must not have properly authorized us.");
+		[_settings removeObjectForKey: @"frob"];
+		[_settings synchronize];
+		[self sendToGrantPermission];
 		return;
 	}
 
