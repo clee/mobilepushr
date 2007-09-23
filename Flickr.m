@@ -66,17 +66,20 @@
 		return FALSE;
 	}
 
-	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
-	if (![[[e attributeForName: @"stat"] stringValue] isEqualToString: @"ok"]) {
+	id element = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
+	if (![[[element attributeForName: @"stat"] stringValue] isEqualToString: @"ok"]) {
 		NSLog(@"The status is not 'ok', and we have no error recovery.");
-		[e release];
+		[element release];
 		return FALSE;
 	}
 
-	[e release];
+	[element release];
 	return TRUE;
 }
 
+/*
+ * Returns an array of XMLNode objects with name matching nodeName.
+ */
 - (NSArray *)getXMLNodesNamed: (NSString *)nodeName fromResponse: (NSData *)responseData
 {
 	NSError *err = nil;
@@ -108,6 +111,9 @@
 	return [NSArray arrayWithArray: matchingNodes];
 }
 
+/*
+ * Returns a dictionary filled with the node names, node values, node attribute names, and attribute values.
+ */
 - (NSDictionary *)getXMLNodesAndAttributesFromResponse: (NSData *)responseData
 {
 	NSError *err = nil;
@@ -206,6 +212,7 @@
 	return [NSString stringWithString: _frob];
 }
 
+#pragma mark externally-visible interface
 /*
  * Get the tags the user has already set on their photos. 
  * TODO: At some point, we should offer a UI to let them tag their future photos with the same tags.
@@ -331,9 +338,9 @@
 	[body appendData: [[NSString stringWithString: @"--\r\n"] dataUsingEncoding: NSUTF8StringEncoding]];
 	long bodyLength = [body length];
 
-	CFURLRef uploadURL = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)FLICKR_UPLOAD_URL, NULL);
-	CFHTTPMessageRef _request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("POST"), uploadURL, kCFHTTPVersion1_1);
-	CFRelease(uploadURL);
+	CFURLRef _uploadURL = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)FLICKR_UPLOAD_URL, NULL);
+	CFHTTPMessageRef _request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("POST"), _uploadURL, kCFHTTPVersion1_1);
+	CFRelease(_uploadURL);
 	uploadURL = NULL;
 
 	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Type"), CFSTR(CONTENT_TYPE));
@@ -372,13 +379,6 @@
 
 		if (CFReadStreamGetStatus(_readStream) == kCFStreamStatusAtEnd) doneUploading = YES;
 	}
-#if 0
-	CFHTTPMessageRef _responseHeaderRef = (CFHTTPMessageRef)CFReadStreamCopyProperty(_readStream, kCFStreamPropertyHTTPResponseHeader);
-	NSDictionary *_responseHeaders = (NSDictionary *)CFHTTPMessageCopyAllHeaderFields(_responseHeaderRef);
-	NSLog(@"Header data was: \n---\n%@\n---\n", _responseHeaders);
-	CFRelease(_responseHeaderRef);
-	_responseHeaderRef = NULL;
-#endif
 
 	CFReadStreamClose(_readStream);
 	CFRelease(_request);
@@ -388,8 +388,6 @@
 
 	return [NSString stringWithString: responseString];
 }
-
-#pragma mark externally-visible interface
 
 /*
  * When the user clicks on the 'Push to Flickr' button, upload the photos that haven't been uploaded yet, and pass the XML for the responses back to the main class when finished.

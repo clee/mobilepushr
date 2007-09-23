@@ -42,6 +42,10 @@
 
 - (id)initWithPushr: (MobilePushr *)pushr;
 
+#pragma mark XML helper functions
+- (NSArray *)getXMLNodesNamed: (NSString *)nodeName fromResponse: (NSData *)responseData;
+- (NSDictionary *)getXMLNodesAndAttributesFromResponse: (NSData *)responseData;
+
 #pragma mark internal functions
 - (NSURL *)signedURL: (NSDictionary *)parameters withBase: (NSString *)base;
 - (NSURL *)signedURL: (NSDictionary *)parameters;

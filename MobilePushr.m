@@ -165,6 +165,9 @@ typedef enum {
 	[topBar pushNavigationItem: topBarTitle];
 	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
 	[UIView endAnimations];
+	[topBar release];
+	[topBarTitle release];
+	[bottomBar release];
 	[mainView release];
 }
 
@@ -247,6 +250,7 @@ typedef enum {
 	[_label release];
 	[_button release];
 	[_window release];
+	[_flickr release];
 	[super dealloc];
 	
 }
