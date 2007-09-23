@@ -18,6 +18,12 @@
 
 #define FLICKR_WRITE_PERMS @"write"
 
+#if !defined(API_KEY) || !defined(SHARED_SECRET)
+#error "You need to define an API key and a shared secret. The MobilePushr API key is not contained in the source code."
+#else
+#define PUSHR_API_KEY @API_KEY
+#define PUSHR_SHARED_SECRET @SHARED_SECRET
+#endif
 
 #define MIME_BOUNDARY "----16c17a9ea1d7b327e7489190e394d411----"
 #define CONTENT_TYPE "multipart/form-data; boundary=" MIME_BOUNDARY
@@ -36,14 +42,17 @@
 
 - (id)initWithPushr: (MobilePushr *)pushr;
 
+#pragma mark internal functions
+- (NSURL *)signedURL: (NSDictionary *)parameters withBase: (NSString *)base;
+- (NSURL *)signedURL: (NSDictionary *)parameters;
+- (NSURL *)authURL;
+- (NSString *)frob;
+
+#pragma mark externally-visible interface
+- (NSArray *)tags;
 - (void)sendToGrantPermission;
 - (void)tradeFrobForToken;
 - (void)checkToken;
-
-- (NSURL *)signedURL: (NSDictionary *)parameters;
-- (NSURL *)authURL;
-
-- (NSString *)frob;
-- (NSArray *)tags;
+- (void)triggerUpload: (id)unused;
 
 @end

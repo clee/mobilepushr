@@ -24,14 +24,17 @@
 		return nil;
 
 	[_pushr release];
-	[_settings release];
-
-	NSLog(@"Flickr: Released things that may not have even been initialized!");
 
 	_pushr = [pushr retain];
 	_settings = [NSUserDefaults standardUserDefaults];
 
 	return self;
+}
+
+- (void) dealloc
+{
+	[_pushr release];
+	[super dealloc];
 }
 
 #pragma mark UIAlertSheet delegation
@@ -53,18 +56,7 @@
 		[_pushr terminate];
 }
 
-- (void)sendToGrantPermission
-{
-	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	[alertSheet setTitle: @"Can't upload to Flickr"];
-	[alertSheet setBodyText: @"Pushr needs your permission to upload pictures to Flickr."];
-	[alertSheet addButtonWithTitle: @"Proceed"];
-	[alertSheet addButtonWithTitle: @"Cancel"];
-	[alertSheet setDelegate: self];
-	[alertSheet popupAlertAnimated: YES];
-	[_settings setBool: TRUE forKey: @"sentToGetToken"];
-}
-
+#pragma mark XML helper functions
 - (BOOL)sanityCheck: (id)responseDocument error: (NSError *)err
 {
 	NSXMLNode *rsp = [[responseDocument children] objectAtIndex: 0];
@@ -82,6 +74,72 @@
 	return TRUE;
 }
 
+- (NSArray *)getXMLNodesNamed: (NSString *)nodeName fromResponse: (NSData *)responseData
+{
+	NSError *err = nil;
+	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
+	if (![self sanityCheck: responseDoc error: err]) {
+		NSLog(@"Flickr returned an error!");
+		[_pushr popupFailureAlertSheet];
+		return nil;
+	}
+
+	NSMutableArray *matchingNodes = [NSMutableArray array];
+	NSArray *nodes = [responseDoc children];
+	NSEnumerator *chain = [nodes objectEnumerator];
+	NSXMLNode *node = nil;
+
+	while ((node = [chain nextObject])) {
+		if (![[node name] isEqualToString: nodeName]) {
+			nodes = [[nodes lastObject] children];
+			chain = [nodes objectEnumerator];
+			continue;
+		}
+
+		[matchingNodes addObject: node];
+	}
+
+	return [NSArray arrayWithArray: matchingNodes];
+}
+
+#pragma mark internal functions
+/*
+ * Returns a URL with the parameters and values properly appended, including the call signing that Flickr requires from our app.
+ *
+ * This method made possible by extending system classes (without having to inherit from them.) Hooray!
+ */
+- (NSURL *)signedURL: (NSDictionary *)parameters withBase: (NSString *)base
+{
+	NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", base];
+	NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
+
+	[sig appendString: [[parameters pairsJoinedByString: @""] componentsJoinedByString: @""]];
+	[url appendString: [[parameters pairsJoinedByString: @"="] componentsJoinedByString: @"&"]];
+	[url appendString: [NSString stringWithFormat: @"&api_sig=%@", [sig md5HexHash]]];
+
+	return [NSURL URLWithString: url];
+}
+
+/*
+ * By default, we want the FLICKR_REST_URL as the base for our calls.
+ */
+- (NSURL *)signedURL: (NSDictionary *)parameters
+{
+	return [self signedURL: parameters withBase: FLICKR_REST_URL];
+}
+
+/*
+ * Returns a one-time-use authorization URL; this URL is a page where the user can tell Flickr to give us permission to upload pictures to their account.
+ */
+- (NSURL *)authURL
+{
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"perms", @"frob", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_WRITE_PERMS, [self frob], nil];
+	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
+
+	return [self signedURL: params withBase: FLICKR_AUTH_URL];
+}
+
 /*
  * Get a frob from Flickr, to put in the URL that we send the user to to get their permission to upload pics.
  */
@@ -93,58 +151,50 @@
 
 	NSURL *url = [self signedURL: params];
 	NSData *responseData = [NSData dataWithContentsOfURL: url];
-	NSError *err = nil;
 
-	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
-	if (![self sanityCheck: responseDoc error: err]) {
-		NSLog(@"Failed the sanity check getting the frob. Bailing!");
-		[_pushr popupFailureAlertSheet];
-		return nil;
-	}
+	NSString *_frob = [[[self getXMLNodesNamed: @"frob" fromResponse: responseData] lastObject] stringValue];
 
-	NSXMLNode *node = [[[[responseDoc children] lastObject] children] lastObject];
-	
-	if (![[node name] isEqualToString: @"frob"]) {
-		NSLog(@"We got an 'ok' response but no frob...");
-		[_pushr popupFailureAlertSheet];
-		return nil;
-	}
-	
-	[_settings setObject: [node stringValue] forKey: @"frob"];
+	[_settings setObject: _frob forKey: @"frob"];
 	[_settings synchronize];
 
-	return [NSString stringWithString: [node stringValue]];
+	return [NSString stringWithString: _frob];
 }
 
 /*
- * This method made possible by extending system classes (without having to 
- * inherit from them.) Hooray!
+ * Get the tags the user has already set on their photos. 
+ * TODO: At some point, we should offer a UI to let them tag their future photos with the same tags.
  */
-- (NSURL *)signedURL: (NSDictionary *)parameters withBase: (NSString *)base
+- (NSArray *)tags
 {
-	NSMutableString *url = [NSMutableString stringWithFormat: @"%@?", base];
-	NSMutableString *sig = [NSMutableString stringWithString: PUSHR_SHARED_SECRET];
-
-	[sig appendString: [[parameters pairsJoinedByString: @""] componentsJoinedByString: @""]];
-	[url appendString: [[parameters pairsJoinedByString: @"="] componentsJoinedByString: @"&"]];
-	[url appendString: [NSString stringWithFormat: @"&api_sig=%@", [sig md5HexHash]]];
-
-	NSLog(@"Created URL: %@", url);
-	return [NSURL URLWithString: url];
-}
-
-- (NSURL *)signedURL: (NSDictionary *)parameters
-{
-	return [self signedURL: parameters withBase: FLICKR_REST_URL];
-}
-
-- (NSURL *)authURL
-{
-	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"perms", @"frob", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_WRITE_PERMS, [self frob], nil];
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TAGS, nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
-	return [self signedURL: params withBase: FLICKR_AUTH_URL];
+	NSURL *url = [self signedURL: params];
+	NSData *responseData = [NSData dataWithContentsOfURL: url];
+	NSMutableArray *_tags = [NSMutableArray array];
+
+	NSEnumerator *iterator = [[self getXMLNodesNamed: @"tag" fromResponse: responseData] objectEnumerator];
+	id currentTagNode = nil;
+	while ((currentTagNode = [iterator nextObject]))
+		[_tags addObject: [currentTagNode stringValue]];
+
+	return [NSArray arrayWithArray: _tags];
+}
+
+/*
+ * Pop up a dialog so the user can tell Flickr it's cool for us to push pictures to their account.
+ */
+- (void)sendToGrantPermission
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"Can't upload to Flickr"];
+	[alertSheet setBodyText: @"Pushr needs your permission to upload pictures to Flickr."];
+	[alertSheet addButtonWithTitle: @"Proceed"];
+	[alertSheet addButtonWithTitle: @"Cancel"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
+	[_settings setBool: TRUE forKey: @"sentToGetToken"];
 }
 
 /*
@@ -186,6 +236,9 @@
 	[_settings synchronize];
 }
 
+/*
+ * We have a token, but is it valid? Maybe the user decided to de-authorize us and we can't push photos to their account anymore. This is how we make sure our token is valid.
+ */
 - (void)checkToken
 {
 	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"auth_token", @"method", nil];
@@ -205,6 +258,11 @@
 	NSLog(@"Well, our token seems good.");
 }
 
+/*
+ * Takes a JPG file at the specified filesystem path, and uploads it to Flickr using CFNetwork, because there is no way of getting the number of bytes written from an HTTP POST request using NSHTTP API.
+ *
+ * This is, without a doubt, the ugliest code in the entire application.
+ */
 - (NSString *)uploadPicture: (NSString *)pathToJPG
 {
 	NSString *token = [_settings stringForKey: @"token"];
@@ -297,7 +355,12 @@
 	return [NSString stringWithString: responseString];
 }
 
--(void)triggerUpload: (id)unused
+#pragma mark externally-visible interface
+
+/*
+ * When the user clicks on the 'Push to Flickr' button, upload the photos that haven't been uploaded yet, and pass the XML for the responses back to the main class when finished.
+ */
+- (void)triggerUpload: (id)unused
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSArray *photos = [_pushr cameraRollPhotos];
@@ -316,40 +379,5 @@
 	[_pushr performSelectorOnMainThread: @selector(allDone:) withObject: responses waitUntilDone: YES];
 	[pool release];
 }
-
-/*
- * Get the tags the user has already set on their photos. 
- * TODO: At some point, we should offer a UI to let them tag their future photos with the same tags.
- */
-- (NSArray *)tags
-{
-	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TAGS, nil];
-	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
-
-	NSURL *url = [self signedURL: params];
-	NSData *responseData = [NSData dataWithContentsOfURL: url];
-	NSError *err = nil;
-
-	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
-	if (![self sanityCheck: responseDoc error: err]) {
-		NSLog(@"Failed the sanity check when verifying our tags. Bailing!");
-		[_pushr popupFailureAlertSheet];
-		return [NSArray array];
-	}
-
-	NSArray *tagNodes = [[[[[[[responseDoc children] lastObject] children] lastObject] children] lastObject] children];
-	NSEnumerator *tagChain = [tagNodes objectEnumerator];
-	NSXMLNode *tagNode = nil;
-	NSMutableArray *tags = [NSMutableArray array];
-
-	while ((tagNode = [tagChain nextObject])) {
-		[tags addObject: [tagNode stringValue]];
-	}
-
-	return [NSArray arrayWithArray: tags];
-}
-
-
 
 @end

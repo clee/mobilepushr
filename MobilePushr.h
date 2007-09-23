@@ -7,7 +7,7 @@
  */
 #import <UIKit/UIApplication.h>
 
-@class NSUserDefaults, Flickr, UIThreePartButton, UITextLabel, UIProgressBar;
+@class NSUserDefaults, Flickr, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow;
 
 @interface MobilePushr: UIApplication
 {
@@ -16,10 +16,12 @@
 	UIThreePartButton *_button;
 	UITextLabel *_label;
 	UIProgressBar *_progress;
+	UIWindow *_window;
 }
 
 - (NSArray *)cameraRollPhotos;
 - (void)popupFailureAlertSheet;
+- (void)setLabelText: (NSString *)labelText;
 - (void)updateProgress: (NSNumber *)currentProgress;
 - (void)allDone: (NSArray *)responses;
 

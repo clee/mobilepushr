@@ -70,11 +70,9 @@ typedef enum {
 	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
 	NSMutableArray *photos = [NSMutableArray array];
 
-	while ((jpg = [dirEnum nextObject])) {
-		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
+	while ((jpg = [dirEnum nextObject]))
+		if ([[jpg pathExtension] isEqualToString: @"JPG"])
 			[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
-		}
-	}
 
 	return [NSArray arrayWithArray: photos];
 }
@@ -92,25 +90,18 @@ typedef enum {
 - (void)loadUserInterface
 {
 	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
-	UIWindow *window = [[UIWindow alloc] initWithContentRect: hwRect];
+	_window = [[UIWindow alloc] initWithContentRect: hwRect];
 
 	struct CGRect appRect = CGRectMake(0.0f, 0.0f, hwRect.size.width, hwRect.size.height);
 	UIView *mainView = [[UIView alloc] initWithFrame: appRect];
 
-	[window orderFront: self];
-	[window makeKey: self];
-	[window setContentView: mainView];
-	[window _setHidden: NO];
+	[_window orderFront: self];
+	[_window makeKey: self];
+	[_window setContentView: mainView];
+	[_window _setHidden: NO];
 
 	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
-
-#if 0
-	UIImageView *background = [[UIImageView alloc] initWithFrame: CGRectMake(0.0f, (-hwRect.origin.y), hwRect.size.width, hwRect.size.height + hwRect.origin.y)];
-	[background setImage: [UIImage defaultDesktopImage]];
-	[background setAlpha: 0.0f];
-	[mainView addSubview: background];
-#endif
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
@@ -159,7 +150,7 @@ typedef enum {
 	[_button setShadowOffset: -1.0f];
 	[_button setDrawsShadow: YES];
 
-	[_button addTarget: self action: @selector(buttonPressed) forEvents: kUIControlEventMouseUpInside];
+	[_button addTarget: self action: @selector(buttonReleased) forEvents: kUIControlEventMouseUpInside];
 	[_button setDrawContentsCentered: YES];
 	[_button setEnabled: YES];
 
@@ -174,6 +165,7 @@ typedef enum {
 	[topBar pushNavigationItem: topBarTitle];
 	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
 	[UIView endAnimations];
+	[mainView release];
 }
 
 - (void)loadConfiguration
@@ -200,9 +192,8 @@ typedef enum {
 	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
 }
 
-- (void)buttonPressed
+- (void)buttonReleased
 {
-	NSLog(@"This is where we would start uploading shit.");
 	[_button setEnabled: NO];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton_inactive.png"]];
 	id mainView = [_button superview];
@@ -226,6 +217,11 @@ typedef enum {
 	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: nil];
 }
 
+- (void)setLabelText: (NSString *)labelText
+{
+	[_label setText: labelText];
+}
+
 - (void)updateProgress: (NSNumber *)currentProgress
 {
 	[_progress setProgress: [currentProgress floatValue]];
@@ -233,7 +229,6 @@ typedef enum {
 
 - (void)allDone: (NSArray *)responses
 {
-	id mainView = [_button superview];
 	[_progress removeFromSuperview];
 	[_label removeFromSuperview];
 	[_button setEnabled: YES];
@@ -244,18 +239,16 @@ typedef enum {
 {
 	[self loadUserInterface];
 	[self loadConfiguration];
+}
 
-/*
-	NSArray *photos = [self cameraRollPhotos];
-	for (int i = 0; i < [photos count]; i++) {
-		NSLog(@"Photo at %@", [photos objectAtIndex: i]);
-	}
+- (void)dealloc
+{
+	[_progress release];
+	[_label release];
+	[_button release];
+	[_window release];
+	[super dealloc];
 	
-	NSArray *tags = [self flickrTags];
-	for (int i = 0; i < [tags count]; i++) {
-		NSLog(@"Tag found: %@", [tags objectAtIndex: i]);
-	}
- */
 }
 
 @end
