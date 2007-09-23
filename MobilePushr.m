@@ -55,6 +55,7 @@ typedef enum {
 	}
 
 	[sheet dismiss];
+	[sheet release];
 
 	if (shouldTerminate) {
 		[self terminate];
