@@ -51,6 +51,7 @@
 	}
 
 	[sheet dismiss];
+	[sheet release];
 
 	if (shouldTerminate)
 		[_pushr terminate];
@@ -68,9 +69,11 @@
 	id e = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
 	if (![[[e attributeForName: @"stat"] stringValue] isEqualToString: @"ok"]) {
 		NSLog(@"The status is not 'ok', and we have no error recovery.");
+		[e release];
 		return FALSE;
 	}
 
+	[e release];
 	return TRUE;
 }
 
@@ -81,6 +84,7 @@
 	if (![self sanityCheck: responseDoc error: err]) {
 		NSLog(@"Flickr returned an error!");
 		[_pushr popupFailureAlertSheet];
+		[responseDoc release];
 		return nil;
 	}
 
@@ -99,7 +103,49 @@
 		[matchingNodes addObject: node];
 	}
 
+	[responseDoc release];
+
 	return [NSArray arrayWithArray: matchingNodes];
+}
+
+- (NSDictionary *)getXMLNodesAndAttributesFromResponse: (NSData *)responseData
+{
+	NSError *err = nil;
+	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
+	if (![self sanityCheck: responseDoc error: err]) {
+		NSLog(@"Flickr returned an error!");
+		[_pushr popupFailureAlertSheet];
+		[responseDoc release];
+		return nil;
+	}
+
+	NSMutableDictionary *nodesWithAttributes = [NSMutableDictionary dictionary];
+	NSArray *nodes = [responseDoc children];
+	NSEnumerator *chain = [nodes objectEnumerator];
+	NSXMLNode *node = nil;
+
+	while ((node = [chain nextObject])) {
+		id element = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [node XMLString] error: &err];
+		if ([[element attributes] count] > 0) {
+			NSEnumerator *attributeChain = [[element attributes] objectEnumerator];
+			id attribute = nil;
+			while ((attribute = [attributeChain nextObject]))
+				[nodesWithAttributes setObject: [attribute stringValue] forKey: [NSString stringWithFormat: @"%@%@", [node name], [attribute name]]];
+		}
+
+		[nodesWithAttributes setObject: [node stringValue] forKey: [node name]];
+
+		if ([[node children] count] > 0 && [[[[node children] objectAtIndex: 0] name] length] > 0) {
+			nodes = [node children];
+			chain = [nodes objectEnumerator];
+		}
+
+		[element release];
+	}
+
+	[responseDoc release];
+
+	return [NSDictionary dictionaryWithDictionary: nodesWithAttributes];
 }
 
 #pragma mark internal functions
@@ -207,31 +253,20 @@
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
 	NSData *responseData = [NSData dataWithContentsOfURL: [self signedURL: params]];
-	NSError *err = nil;
 
-	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
-	if (![self sanityCheck: responseDoc error: err]) {
-		NSLog(@"Failed the sanity check getting the token. The user must not have properly authorized us.");
+	NSDictionary *tokenDictionary = [self getXMLNodesAndAttributesFromResponse: responseData];
+	NSArray *responseKeys = [tokenDictionary allKeys];
+	if (!([responseKeys containsObject: @"token"] && [responseKeys containsObject: @"usernsid"] && [responseKeys containsObject: @"userusername"])) {
+		NSLog(@"Flickr returned an error!");
 		[_settings removeObjectForKey: @"frob"];
 		[_settings synchronize];
 		[self sendToGrantPermission];
 		return;
 	}
 
-	NSArray *nodes = [[[[[responseDoc children] lastObject] children] lastObject] children];
-
-	NSEnumerator *chain = [nodes objectEnumerator];
-	NSXMLNode *node = nil;
-	while ((node = [chain nextObject])) {
-		if ([[node name] isEqualToString: @"token"]) {
-			[_settings setObject: [node stringValue] forKey: @"token"];
-		} else if ([[node name] isEqualToString: @"user"]) {
-			id element = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [node XMLString] error: &err];
-			[_settings setObject: [[element attributeForName: @"username"] stringValue] forKey: @"username"];
-			[_settings setObject: [[element attributeForName: @"nsid"] stringValue] forKey: @"nsid"];
-		}
-	}
-
+	[_settings setObject: [tokenDictionary objectForKey: @"token"] forKey: @"token"];
+	[_settings setObject: [tokenDictionary objectForKey: @"usernsid"] forKey: @"nsid"];
+	[_settings setObject: [tokenDictionary objectForKey: @"userusername"] forKey: @"username"];
 	[_settings removeObjectForKey: @"frob"];
 	[_settings synchronize];
 }
@@ -245,10 +280,9 @@
 	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, [_settings stringForKey: @"token"], FLICKR_CHECK_TOKEN, nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 	NSData *responseData = [NSData dataWithContentsOfURL: [self signedURL: params]];
-	NSError *err = nil;
-
-	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
-	if (![self sanityCheck: responseDoc error: err]) {
+	NSDictionary *tokenDictionary = [self getXMLNodesAndAttributesFromResponse: responseData];
+	NSArray *responseKeys = [tokenDictionary allKeys];
+	if (!([responseKeys containsObject: @"token"] && [responseKeys containsObject: @"usernsid"] && [responseKeys containsObject: @"userusername"])) {
 		NSLog(@"Failed the sanity check when verifying our token. Bailing!");
 		[_settings setBool: FALSE forKey: @"sentToGetToken"];
 		[self sendToGrantPermission];
