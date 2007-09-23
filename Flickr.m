@@ -341,7 +341,7 @@
 	CFURLRef _uploadURL = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)FLICKR_UPLOAD_URL, NULL);
 	CFHTTPMessageRef _request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("POST"), _uploadURL, kCFHTTPVersion1_1);
 	CFRelease(_uploadURL);
-	uploadURL = NULL;
+	_uploadURL = NULL;
 
 	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Type"), CFSTR(CONTENT_TYPE));
 	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Host"), CFSTR("api.flickr.com"));
