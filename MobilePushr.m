@@ -1,4 +1,11 @@
-// MobilePushr.m
+/*
+ * MobilePushr.m
+ * -------------
+ * The main UIApplication subclass - everything starts and ends here.
+ *
+ * Author: Chris Lee <clee@mg8.org>
+ * License: GPL v2 <http://www.opensource.org/licenses/gpl-license.php>
+ */
 #import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import <GraphicsServices/GraphicsServices.h>

@@ -1,9 +1,10 @@
-//
-//  Flickr
-//
-//  Created by Chris Lee on 2007-09-14.
-//  Copyright (c) 2007. All rights reserved.
-//
+/*
+ * Flickr.h
+ * --------
+ *
+ * Author: Chris Lee <clee@mg8.org>
+ * License: GPL v2 <http://www.opensource.org/licenses/gpl-license.php>
+ */
 
 #define FLICKR_AUTH_URL @"http://flickr.com/services/auth/"
 #define FLICKR_REST_URL @"http://api.flickr.com/services/rest/"

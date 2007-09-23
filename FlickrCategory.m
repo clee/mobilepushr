@@ -1,10 +1,11 @@
-//
-//  FlickrCategory - extending the built-in NSData, NSString, and NSDictionary classes with methods that make them more useful for interacting with the Flickr web services.
-//
-//  Created by Chris Lee on 2007-09-15.
-//  Copyright (c) 2007. All rights reserved.
-//
-
+/*
+ * FlickrCategory.h
+ * ----------------
+ * FlickrCategory - extending the built-in NSData, NSString, and NSDictionary classes with methods that make them more useful for interacting with the Flickr web services.
+ *
+ * Author: Chris Lee <clee@mg8.org>
+ * License: GPL v2 <http://www.opensource.org/licenses/gpl-license.php>
+ */
 #import "FlickrCategory.h"
 
 @implementation NSData (Flickr)

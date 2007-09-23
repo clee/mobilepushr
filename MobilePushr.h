@@ -1,4 +1,10 @@
-// MobileTermina.h
+/*
+ * MobilePushr.h
+ * -------------
+ *
+ * Author: Chris Lee <clee@mg8.org>
+ * License: GPL v2 <http://www.opensource.org/licenses/gpl-license.php>
+ */
 #import <UIKit/UIApplication.h>
 
 @class NSUserDefaults, Flickr, UIThreePartButton, UITextLabel, UIProgressBar;

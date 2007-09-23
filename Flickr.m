@@ -1,9 +1,11 @@
-//
-//  Flickr interaction class
-//
-//  Created by Chris Lee on 2007-09-14.
-//  Copyright (c) 2007. All rights reserved.
-//
+/*
+ * Flickr.m
+ * --------
+ * Class containing methods to interact with the Flickr web services. 
+ *
+ * Author: Chris Lee <clee@mg8.org>
+ * License: GPL v2 <http://www.opensource.org/licenses/gpl-license.php>
+ */
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIAlertSheet.h>
