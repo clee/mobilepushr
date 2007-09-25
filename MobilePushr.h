@@ -7,7 +7,7 @@
  */
 #import <UIKit/UIApplication.h>
 
-@class NSUserDefaults, Flickr, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow;
+@class NSUserDefaults, Flickr, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow, UIImageView;
 
 @interface MobilePushr: UIApplication
 {
@@ -16,6 +16,7 @@
 	UIThreePartButton *_button;
 	UITextLabel *_label;
 	UIProgressBar *_progress;
+	UIImageView *_thumbnailView;
 	UIWindow *_window;
 }
 

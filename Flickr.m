@@ -13,6 +13,7 @@
 #import "MobilePushr.h"
 
 #include <unistd.h>
+#include <sys/xattr.h>
 
 @class NSXMLNode, NSXMLElement, NSXMLDocument;
 
@@ -31,14 +32,14 @@
 	return self;
 }
 
-- (void) dealloc
+- (void)dealloc
 {
 	[_pushr release];
 	[super dealloc];
 }
 
 #pragma mark UIAlertSheet delegation
-- (void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
+- (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
 	BOOL shouldTerminate = NO;
 
@@ -304,14 +305,15 @@
  *
  * This is, without a doubt, the ugliest code in the entire application.
  */
-- (NSString *)uploadPicture: (NSString *)pathToJPG
+- (NSString *)pushPhoto: (NSString *)pathToJPG
 {
 	NSString *token = [_settings stringForKey: @"token"];
 	NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys: PUSHR_API_KEY, @"api_key", token, @"auth_token", nil];
 	NSArray *pairs = [params pairsJoinedByString: @""];
 	NSString *api_sig = [NSString stringWithFormat: @"%@%@", PUSHR_SHARED_SECRET, [pairs componentsJoinedByString: @""]];
 	[params setObject: [api_sig md5HexHash] forKey: @"api_sig"];
-	[params setObject: [NSData dataWithContentsOfFile: pathToJPG] forKey: @"photo"];
+	NSData *jpgData = [NSData dataWithContentsOfFile: pathToJPG];
+	[params setObject: jpgData forKey: @"photo"];
 
 	NSMutableData *body = [[NSMutableData alloc] initWithLength: 0];
 	[body appendData: [[[[NSString alloc] initWithFormat: @"--%@\r\n", @MIME_BOUNDARY] autorelease] dataUsingEncoding: NSUTF8StringEncoding]];
@@ -336,7 +338,6 @@
 	}
 
 	[body appendData: [[NSString stringWithString: @"--\r\n"] dataUsingEncoding: NSUTF8StringEncoding]];
-	long bodyLength = [body length];
 
 	CFURLRef _uploadURL = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)FLICKR_UPLOAD_URL, NULL);
 	CFHTTPMessageRef _request = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("POST"), _uploadURL, kCFHTTPVersion1_1);
@@ -345,9 +346,8 @@
 
 	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Type"), CFSTR(CONTENT_TYPE));
 	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Host"), CFSTR("api.flickr.com"));
-	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Length"), (CFStringRef)[NSString stringWithFormat: @"%d", bodyLength]);
+	CFHTTPMessageSetHeaderFieldValue(_request, CFSTR("Content-Length"), (CFStringRef)[NSString stringWithFormat: @"%d", [body length]]);
 	CFHTTPMessageSetBody(_request, (CFDataRef)body);
-	[body release];
 
 	CFReadStreamRef _readStream = CFReadStreamCreateForHTTPRequest(kCFAllocatorDefault, _request);
 	CFReadStreamOpen(_readStream);
@@ -363,9 +363,10 @@
 		CFNumberGetValue(cfSize, kCFNumberLongType, &bytesWritten);
 		CFRelease(cfSize);
 		cfSize = NULL;
+
 		if (bytesWritten > previousBytesWritten) {
 			previousBytesWritten = bytesWritten;
-			NSNumber *progress = [NSNumber numberWithFloat: ((float)bytesWritten / (float)bodyLength)];
+			NSNumber *progress = [NSNumber numberWithFloat: ((float)bytesWritten / (float)[body length])];
 			[_pushr performSelectorOnMainThread: @selector(updateProgress:)  withObject: progress waitUntilDone: YES];
 		}
 
@@ -379,6 +380,7 @@
 
 		if (CFReadStreamGetStatus(_readStream) == kCFStreamStatusAtEnd) doneUploading = YES;
 	}
+	[body release];
 
 	CFReadStreamClose(_readStream);
 	CFRelease(_request);
@@ -390,7 +392,7 @@
 }
 
 /*
- * When the user clicks on the 'Push to Flickr' button, upload the photos that haven't been uploaded yet, and pass the XML for the responses back to the main class when finished.
+ * When the user clicks on the 'Push to Flickr' button, push the photos that haven't been pushed yet, and pass the XML for the responses back to the main class when finished.
  */
 - (void)triggerUpload: (id)unused
 {
@@ -403,8 +405,10 @@
 	while ((photo = [enumerator nextObject])) {
 		int currentPhotoIndex = [[[[photo componentsSeparatedByString: @"/"] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
 		if ([_settings integerForKey: @"lastPushedPhotoIndex"] < currentPhotoIndex) {
-			[responses addObject: [self uploadPicture: photo]];
+			[_pushr performSelectorOnMainThread: @selector(startingToPush:) withObject: photo waitUntilDone: NO];
+			[responses addObject: [self pushPhoto: photo]];
 			[_settings setInteger: currentPhotoIndex forKey: @"lastPushedPhotoIndex"];
+			[_pushr performSelectorOnMainThread: @selector(donePushing:) withObject: photo waitUntilDone: NO];
 		}
 	}
 

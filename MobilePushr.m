@@ -170,6 +170,7 @@ typedef enum {
 	[topBarTitle release];
 	[bottomBar release];
 	[mainView release];
+	_thumbnailView = nil;
 }
 
 - (void)loadConfiguration
@@ -221,6 +222,26 @@ typedef enum {
 	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: nil];
 }
 
+- (void)startingToPush: (NSString *)photoPath
+{
+	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
+	NSString *thumbnailPath = [[photoPath stringByDeletingPathExtension] stringByAppendingPathExtension: @"THM"];
+	UIImage *thumbnailImage = [UIImage imageAtPath: thumbnailPath];
+
+	struct CGRect thumbnailRect = CGRectMake(hwRect.origin.x + ((hwRect.size.width - [thumbnailImage size].width) / 2.0), hwRect.origin.y + ((hwRect.size.height - [thumbnailImage size].height) / 2.0), [thumbnailImage size].width, [thumbnailImage size].height);
+	_thumbnailView = [[UIImageView alloc] initWithFrame: thumbnailRect];
+	[_thumbnailView setImage: thumbnailImage];
+
+	id mainview = [_label superview];
+	[mainview addSubview: _thumbnailView];
+}
+
+- (void)donePushing: (NSString *)photoPath
+{
+	[_thumbnailView removeFromSuperview];
+	[_thumbnailView release];
+}
+
 - (void)setLabelText: (NSString *)labelText
 {
 	[_label setText: labelText];
@@ -233,6 +254,7 @@ typedef enum {
 
 - (void)allDone: (NSArray *)responses
 {
+	[_thumbnailView removeFromSuperview];
 	[_progress removeFromSuperview];
 	[_label removeFromSuperview];
 	[_button setEnabled: YES];
@@ -247,6 +269,7 @@ typedef enum {
 
 - (void)dealloc
 {
+	[_thumbnailView release];
 	[_progress release];
 	[_label release];
 	[_button release];
