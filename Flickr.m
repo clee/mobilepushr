@@ -301,7 +301,7 @@
 }
 
 /*
- * Takes a JPG file at the specified filesystem path, and uploads it to Flickr using CFNetwork, because there is no way of getting the number of bytes written from an HTTP POST request using NSHTTP API.
+ * Takes a JPG file at the specified filesystem path, and uploads it to Flickr using CFNetwork, because there is no way of getting the number of bytes written from an HTTP POST request using the NSHTTP API.
  *
  * This is, without a doubt, the ugliest code in the entire application.
  */
@@ -400,16 +400,15 @@
 	NSArray *photos = [_pushr cameraRollPhotos];
 	NSMutableArray *responses = [NSMutableArray array];
 
+	int currentPhotoIndex = -1;
 	NSEnumerator *enumerator = [photos objectEnumerator];
 	id photo = nil;
 	while ((photo = [enumerator nextObject])) {
-		int currentPhotoIndex = [[[[photo componentsSeparatedByString: @"/"] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
-		if ([_settings integerForKey: @"lastPushedPhotoIndex"] < currentPhotoIndex) {
-			[_pushr performSelectorOnMainThread: @selector(startingToPush:) withObject: photo waitUntilDone: NO];
-			[responses addObject: [self pushPhoto: photo]];
-			[_settings setInteger: currentPhotoIndex forKey: @"lastPushedPhotoIndex"];
-			[_pushr performSelectorOnMainThread: @selector(donePushing:) withObject: photo waitUntilDone: NO];
-		}
+		currentPhotoIndex = [[[[photo pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
+		[_pushr performSelectorOnMainThread: @selector(startingToPush:) withObject: photo waitUntilDone: NO];
+		[responses addObject: [self pushPhoto: photo]];
+		[_settings setInteger: currentPhotoIndex forKey: @"lastPushedPhotoIndex"];
+		[_pushr performSelectorOnMainThread: @selector(donePushing:) withObject: photo waitUntilDone: NO];
 	}
 
 	[_pushr performSelectorOnMainThread: @selector(allDone:) withObject: responses waitUntilDone: YES];

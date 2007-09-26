@@ -33,6 +33,7 @@
 
 #import "MobilePushr.h"
 #import "Flickr.h"
+#import "PushablePhotos.h"
 
 typedef enum {
     kUIControlEventMouseDown = 1 << 0,
@@ -71,9 +72,14 @@ typedef enum {
 	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
 	NSMutableArray *photos = [NSMutableArray array];
 
-	while ((jpg = [dirEnum nextObject]))
-		if ([[jpg pathExtension] isEqualToString: @"JPG"])
-			[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
+	int currentPhotoIndex = 0;
+	while ((jpg = [dirEnum nextObject])) {
+		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
+			currentPhotoIndex = [[[[jpg pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
+			if (currentPhotoIndex > [_settings integerForKey: @"lastPushedPhotoIndex"])
+				[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
+		}
+	}
 
 	return [NSArray arrayWithArray: photos];
 }
@@ -101,8 +107,10 @@ typedef enum {
 	[_window setContentView: mainView];
 	[_window _setHidden: NO];
 
-	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	NSLog(@"Creating PushablePhotos view...");
+	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: CGRectMake(appRect.origin.x, appRect.origin.y + 44.0f, appRect.size.width, appRect.size.height - (44.0f + 96.0f))];
+	[mainView addSubview: _pushablePhotos];
+	NSLog(@"Added PushablePhotos subview");
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
@@ -132,6 +140,7 @@ typedef enum {
 	[_button setTitleFont: buttonFont];
 	CFRelease(buttonFont);
 
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	struct CGRect buttonRect = CGRectMake(20.0f, (appRect.size.height - 74.0f), appRect.size.width - 40.0f, 52.0f);
 	[_button setFrame: buttonRect];
 	[_button setPressedBackgroundImage: [UIImage imageNamed: @"mainbutton_pressed.png"]];
@@ -263,8 +272,8 @@ typedef enum {
 
 - (void)applicationDidFinishLaunching: (id) unused
 {
-	[self loadUserInterface];
 	[self loadConfiguration];
+	[self loadUserInterface];
 }
 
 - (void)dealloc
