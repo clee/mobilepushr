@@ -41,21 +41,17 @@
 #pragma mark UIAlertSheet delegation
 - (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
-	BOOL shouldTerminate = NO;
+	[sheet dismiss];
+	[sheet release];
 
 	switch (button) {
 		case 1:
 			[_pushr openURL: [self authURL]];
 			break;
 		default:
-			shouldTerminate = YES;
+			[_pushr terminate];
+			break;
 	}
-
-	[sheet dismiss];
-	[sheet release];
-
-	if (shouldTerminate)
-		[_pushr terminate];
 }
 
 #pragma mark XML helper functions
@@ -64,6 +60,7 @@
 	NSXMLNode *rsp = [[responseDocument children] objectAtIndex: 0];
 	if (![[rsp name] isEqualToString: @"rsp"]) {
 		NSLog(@"This is not an <rsp> tag! Bailing out.");
+		NSLog(@"Debug: name %@, %@", [rsp name], [rsp XMLString]);
 		return FALSE;
 	}
 
@@ -376,6 +373,10 @@
 		}
 
 		numBytesRead = CFReadStreamRead(_readStream, buf, 1024);
+		if (numBytesRead < 1024) {
+			NSLog(@"numBytesRead: %d", numBytesRead);
+			buf[numBytesRead] = 0;			
+		}
 		[responseString appendFormat: @"%s", buf];
 
 		if (CFReadStreamGetStatus(_readStream) == kCFStreamStatusAtEnd) doneUploading = YES;

@@ -32,9 +32,11 @@
 #import <UIKit/UIThreePartImageView.h>
 
 #import "MobilePushr.h"
+#import "PushrNetUtil.h"
 #import "Flickr.h"
 #import "PushablePhotos.h"
 
+#pragma mark Island of Misfit Toys
 typedef enum {
     kUIControlEventMouseDown = 1 << 0,
     kUIControlEventMouseMovedInside = 1 << 2, // mouse moved inside control target
@@ -48,18 +50,13 @@ typedef enum {
 
 - (void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
-	BOOL shouldTerminate;
-	switch (button) {
-		default: {
-			shouldTerminate = TRUE;
-		}
-	}
-
 	[sheet dismiss];
 	[sheet release];
 
-	if (shouldTerminate) {
-		[self terminate];
+	switch (button) {
+		default: {
+			[self terminate];
+		}
 	}
 }
 
@@ -80,6 +77,49 @@ typedef enum {
 	[alertSheet popupAlertAnimated: YES];
 }
 
+- (void)popupEmptyCameraRollAlertSheet
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"There aren't any photos to push"];
+	[alertSheet setBodyText: @"Use the Camera application to put photos into the Camera Roll album."];
+	[alertSheet addButtonWithTitle: @"Quit Pushr"];
+	[alertSheet setDelegate: self];
+	[alertSheet popupAlertAnimated: YES];
+}
+
+- (void)checkNetworkType
+{
+	NSLog(@"Inside of checkNetworkType...");
+	_netUtil = [[PushrNetUtil alloc] initWithPushr: self];
+	NSLog(@"Allocated _netUtil");
+	if (![_netUtil hasWiFi])
+		[_netUtil warnUserAboutSlowEDGE];
+}
+
+- (void)loadConfiguration
+{
+	_settings = [NSUserDefaults standardUserDefaults];
+	_flickr = [[Flickr alloc] initWithPushr: self];
+
+	if ([_settings boolForKey: @"sentToGetToken"] != TRUE) {
+		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
+		[_flickr sendToGrantPermission];
+		return;
+	}
+
+	if ([_settings stringForKey: @"frob"] != nil) {
+		NSLog(@"We had a frob - trade it in for a token, the user's NSID, and username.");
+		[_flickr tradeFrobForToken];
+	}
+
+	if ([_settings stringForKey: @"token"] != nil) {
+		NSLog(@"We have a token - test it to make sure it works.");
+		[_flickr checkToken];
+	}
+
+	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
+}
+
 - (void)loadUserInterface
 {
 	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
@@ -93,10 +133,10 @@ typedef enum {
 	[_window setContentView: mainView];
 	[_window _setHidden: NO];
 
-	NSLog(@"Creating PushablePhotos view...");
 	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect application: self];
 	[mainView addSubview: _pushablePhotos];
-	NSLog(@"Added PushablePhotos subview");
+	if ([[self cameraRollPhotos] count] == 0)
+		[self popupEmptyCameraRollAlertSheet];
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
@@ -117,7 +157,6 @@ typedef enum {
 		.right  = { .origin = { .x =  4.0f, .y = 0.0f }, .size = { .width = 2.0f, .height = 96.0f } },
 	};
 	[bottomBar setSlices: barSlices];
-	[bottomBar setAlpha: 0.75f];
 	[mainView addSubview: bottomBar];
 
 	_button = [[[UIThreePartButton alloc] initWithTitle: @"Push to Flickr" autosizesToFit: YES] autorelease];
@@ -156,8 +195,6 @@ typedef enum {
 	[UIView setAnimationCurve: kUIAnimationCurveEaseIn];
 	[UIView setAnimationDuration: 1.0];
 
-	// [background setAlpha: 1.0f];
-
 	[topBar pushNavigationItem: topBarTitle];
 	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
 	[UIView endAnimations];
@@ -166,30 +203,6 @@ typedef enum {
 	[bottomBar release];
 	[mainView release];
 	_thumbnailView = nil;
-}
-
-- (void)loadConfiguration
-{
-	_settings = [NSUserDefaults standardUserDefaults];
-	_flickr = [[Flickr alloc] initWithPushr: self];
-
-	if ([_settings boolForKey: @"sentToGetToken"] != TRUE) {
-		NSLog(@"Have to send the user to Flickr to get permission to upload pics.");
-		[_flickr sendToGrantPermission];
-		return;
-	}
-
-	if ([_settings stringForKey: @"frob"] != nil) {
-		NSLog(@"We had a frob - trade it in for a token, the user's NSID, and username.");
-		[_flickr tradeFrobForToken];
-	}
-
-	if ([_settings stringForKey: @"token"] != nil) {
-		NSLog(@"We have a token - test it to make sure it works.");
-		[_flickr checkToken];
-	}
-
-	NSLog(@"Our token is: %@", [_settings stringForKey: @"token"]);
 }
 
 - (void)buttonReleased
@@ -257,10 +270,12 @@ typedef enum {
 
 	NSMutableArray *photoIDs = [NSMutableArray array];
 	NSEnumerator *enumerator = [responses objectEnumerator];
-	id responseData = nil;
-	while ((responseData = [enumerator nextObject])) {
-		[photoIDs addObject: [[[_flickr getXMLNodesNamed: @"photoid" fromResponse: [responseData dataUsingEncoding: NSUTF8StringEncoding]] lastObject] stringValue]];
+	id responseString = nil;
+	while ((responseString = [enumerator nextObject])) {
+		NSLog(@"ResponseData: %@", responseString);
+		[photoIDs addObject: [[[_flickr getXMLNodesNamed: @"photoid" fromResponse: [responseString dataUsingEncoding: NSUTF8StringEncoding]] lastObject] stringValue]];		
 	}
+
 	[_pushablePhotos promptUserToEditPhotos: photoIDs];
 	[_button setEnabled: YES];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
@@ -268,6 +283,7 @@ typedef enum {
 
 - (void)applicationDidFinishLaunching: (id) unused
 {
+	[self checkNetworkType];
 	[self loadConfiguration];
 	[self loadUserInterface];
 }
@@ -280,6 +296,7 @@ typedef enum {
 	[_button release];
 	[_window release];
 	[_flickr release];
+	[_netUtil release];
 	[super dealloc];
 	
 }

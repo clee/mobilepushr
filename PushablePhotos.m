@@ -84,9 +84,9 @@
 	_photoList = [photoList retain];
     UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
     [alertSheet setTitle: @"Done pushing to Flickr"];
-    [alertSheet setBodyText: @"Would you like to edit the information for your Flickr photos in Safari now?"];
-    [alertSheet addButtonWithTitle: @"Proceed"];
-    [alertSheet addButtonWithTitle: @"Cancel"];
+    [alertSheet setBodyText: @"Would you like to edit the information for your Flickr photos now?"];
+    [alertSheet addButtonWithTitle: @"Edit in Safari"];
+    [alertSheet addButtonWithTitle: @"Do not edit"];
     [alertSheet setDelegate: self];
     [alertSheet popupAlertAnimated: YES];
 }
@@ -96,7 +96,7 @@
 
 	switch (button) {
 		case 1:
-			[_pushr openURL: [NSString stringWithFormat: @"http://www.flickr.com/tools/uploader_edit.gne?ids=%@", [_photoList componentsJoinedByString: @","]]];
+			[_pushr openURL: [NSURL URLWithString: [NSString stringWithFormat: @"http://www.flickr.com/tools/uploader_edit.gne?ids=%@", [_photoList componentsJoinedByString: @","]]]];
 			break;
 		default:
 			shouldTerminate = YES;

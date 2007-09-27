@@ -7,10 +7,11 @@
  */
 #import <UIKit/UIApplication.h>
 
-@class NSUserDefaults, Flickr, PushablePhotos, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow, UIImageView;
+@class NSUserDefaults, Flickr, PushrNetUtil, PushablePhotos, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow, UIImageView;
 
 @interface MobilePushr: UIApplication
 {
+	PushrNetUtil *_netUtil;
 	NSUserDefaults *_settings;
 	Flickr *_flickr;
 	PushablePhotos *_pushablePhotos;
