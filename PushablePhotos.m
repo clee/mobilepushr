@@ -93,11 +93,14 @@
 
 - (void)removePhoto: (RemovablePhotoCell *)photoCell {
 	int index = [self _rowForTableCell: photoCell];
+	NSLog(@"Removing photo at index %d (from %@)", index, _photos);
 	[_photos removeObjectAtIndex: index];
+	NSLog(@"Now photos looks like: %@", _photos);
 	[self reloadData];
 }
 
 - (NSArray *)pushablePhotos {
+	NSLog(@"Requesting photos for upload: %@", _photos);
 	return [NSArray arrayWithArray: _photos];
 }
 
@@ -128,17 +131,14 @@
 }
 
 - (UITableCell *)table: (UITable *)table cellForRow: (int)row column: (UITableColumn *)col {
-	NSLog(@"Entered cellForRow");
 	RemovablePhotoCell *cell = [[RemovablePhotoCell alloc] init];
 	NSString *photo = [_photos objectAtIndex: row];
 	NSString *thumbnail = [[photo stringByDeletingPathExtension] stringByAppendingPathExtension: @"THM"];
-	NSLog(@"Starting to create cellForRow (%d)", row);
 
 	[cell setPath: photo];
 	[cell setTitle: [[photo pathComponents] lastObject]];
 	[cell setImage: [UIImage imageAtPath: thumbnail]];
-
-	NSLog(@"Created a row for %@", [[photo pathComponents] lastObject]);
+	[cell setTable: self];
 
 	return cell;
 }
@@ -170,7 +170,7 @@
 
 - (void)removeControlWillHideRemoveConfirmation:(id)fp8
 {
-    [self _showDeleteOrInsertion: NO withDisclosure: NO animated: YES isDelete: YES andRemoveConfirmation: YES];
+    [self _showDeleteOrInsertion: NO withDisclosure: NO animated: YES isDelete: YES andRemoveConfirmation: NO];
 }
 
 - (void)setTable: (PushablePhotosTable *)table {

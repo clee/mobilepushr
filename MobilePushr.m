@@ -200,21 +200,21 @@ typedef enum {
 	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
 	float transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	UIView *shade = [[UIView alloc] initWithFrame: [mainView frame]];
-	[shade setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
-	[mainView addSubview: shade];
+	_shade = [[UIView alloc] initWithFrame: [mainView frame]];
+	[_shade setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	[mainView addSubview: _shade];
 	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
 	_label = [[UITextLabel alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 60.0f, hwRect.size.width - 40.0f, 20.0f)];
 	[_label setText: @"Please Wait"];
 	[_label setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), transparent)];
 	[_label setColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), white)];
 	[_label setCentersHorizontally: YES];
-	[shade addSubview: _label];
+	[_shade addSubview: _label];
 
 	_progress = [[UIProgressBar alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 80.0f, hwRect.size.width - 40.0f, 60.0f)];
 	[_progress setProgress: 0];
 	[_progress setStyle: 0];
-	[shade addSubview: _progress];
+	[_shade addSubview: _progress];
 
 	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: [self cameraRollPhotos]];
 }
@@ -229,8 +229,7 @@ typedef enum {
 	_thumbnailView = [[UIImageView alloc] initWithFrame: thumbnailRect];
 	[_thumbnailView setImage: thumbnailImage];
 
-	id shade = [_label superview];
-	[shade addSubview: _thumbnailView];
+	[_shade addSubview: _thumbnailView];
 }
 
 - (void)donePushing: (NSString *)photoPath
@@ -251,12 +250,9 @@ typedef enum {
 
 - (void)allDone: (NSArray *)responses
 {
-	id shade = [_label superview];
-	[_thumbnailView removeFromSuperview];
 	[_progress removeFromSuperview];
 	[_label removeFromSuperview];
-	[shade removeFromSuperview];
-	[shade release];
+	[_shade removeFromSuperview];
 	[_button setEnabled: YES];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
 }
@@ -272,6 +268,7 @@ typedef enum {
 	[_thumbnailView release];
 	[_progress release];
 	[_label release];
+	[_shade release];
 	[_button release];
 	[_window release];
 	[_flickr release];

@@ -18,6 +18,7 @@
 	UITextLabel *_label;
 	UIProgressBar *_progress;
 	UIImageView *_thumbnailView;
+	UIView *_shade;
 	UIWindow *_window;
 }
 
