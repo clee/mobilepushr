@@ -197,7 +197,7 @@ typedef enum {
 	[_button setEnabled: NO];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton_inactive.png"]];
 	id mainView = [_button superview];
-	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
+	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.9f };
 	float transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	_shade = [[UIView alloc] initWithFrame: [mainView frame]];
