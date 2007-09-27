@@ -67,21 +67,7 @@ typedef enum {
 
 - (NSArray *)cameraRollPhotos
 {
-	NSString *jpg;
-	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
-	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
-	NSMutableArray *photos = [NSMutableArray array];
-
-	int currentPhotoIndex = 0;
-	while ((jpg = [dirEnum nextObject])) {
-		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
-			currentPhotoIndex = [[[[jpg pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
-			if (currentPhotoIndex > [_settings integerForKey: @"lastPushedPhotoIndex"])
-				[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
-		}
-	}
-
-	return [NSArray arrayWithArray: photos];
+	return [_pushablePhotos photosToPush];
 }
 
 - (void)popupFailureAlertSheet
@@ -108,7 +94,7 @@ typedef enum {
 	[_window _setHidden: NO];
 
 	NSLog(@"Creating PushablePhotos view...");
-	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: CGRectMake(appRect.origin.x, appRect.origin.y + 44.0f, appRect.size.width, appRect.size.height - (44.0f + 96.0f))];
+	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect];
 	[mainView addSubview: _pushablePhotos];
 	NSLog(@"Added PushablePhotos subview");
 
@@ -214,21 +200,23 @@ typedef enum {
 	float blackColor[4] = { 0.0f, 0.0f, 0.0f, 0.5f };
 	float transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	[mainView setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	UIView *shade = [[UIView alloc] initWithFrame: [mainView frame]];
+	[shade setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), blackColor)];
+	[mainView addSubview: shade];
 	struct CGRect hwRect = [UIHardware fullScreenApplicationContentRect];
 	_label = [[UITextLabel alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 60.0f, hwRect.size.width - 40.0f, 20.0f)];
 	[_label setText: @"Please Wait"];
 	[_label setBackgroundColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), transparent)];
 	[_label setColor: CGColorCreate(CGColorSpaceCreateDeviceRGB(), white)];
 	[_label setCentersHorizontally: YES];
-	[mainView addSubview: _label];
+	[shade addSubview: _label];
 
 	_progress = [[UIProgressBar alloc] initWithFrame: CGRectMake(hwRect.origin.x + 20.0f, hwRect.origin.y + 80.0f, hwRect.size.width - 40.0f, 60.0f)];
 	[_progress setProgress: 0];
 	[_progress setStyle: 0];
-	[mainView addSubview: _progress];
+	[shade addSubview: _progress];
 
-	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: nil];
+	[NSThread detachNewThreadSelector: @selector(triggerUpload:) toTarget: _flickr withObject: [self cameraRollPhotos]];
 }
 
 - (void)startingToPush: (NSString *)photoPath
@@ -241,8 +229,8 @@ typedef enum {
 	_thumbnailView = [[UIImageView alloc] initWithFrame: thumbnailRect];
 	[_thumbnailView setImage: thumbnailImage];
 
-	id mainview = [_label superview];
-	[mainview addSubview: _thumbnailView];
+	id shade = [_label superview];
+	[shade addSubview: _thumbnailView];
 }
 
 - (void)donePushing: (NSString *)photoPath
@@ -263,9 +251,12 @@ typedef enum {
 
 - (void)allDone: (NSArray *)responses
 {
+	id shade = [_label superview];
 	[_thumbnailView removeFromSuperview];
 	[_progress removeFromSuperview];
 	[_label removeFromSuperview];
+	[shade removeFromSuperview];
+	[shade release];
 	[_button setEnabled: YES];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
 }

@@ -46,13 +46,14 @@
 	struct CGColor *whiteColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), color);
 	[self setBackgroundColor: whiteColor];
 
-	_table = [[PushablePhotosTable alloc] initWithFrame: frame];
+	_table = [[PushablePhotosTable alloc] initWithFrame: CGRectMake(frame.origin.x, frame.origin.y + 44.0f, frame.size.width, frame.size.height - (96.0f + 44.0f))];
 	UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Camera Roll" identifier: @"cameraroll" width: frame.size.width];
 	[_table addTableColumn: col];
 	[_table setSeparatorStyle: 1];
 	[_table setPhotos: [self cameraRollPhotos]];
 	[_table setDelegate: _table];
 	[_table setDataSource: _table];
+	[_table reloadData];
 
 	[self addSubview: _table];
 
@@ -91,16 +92,9 @@
 }
 
 - (void)removePhoto: (RemovablePhotoCell *)photoCell {
-	if ([_photos containsObject: [photoCell path]]) {
-		NSLog(@"Removing photo %@", [photoCell path]);
-		[_photos removeObject: [photoCell path]];		
-	} else {
-		NSLog(@"Was told to remove object I didn't even have.");
-	}
-}
-
-- (void)reloadData {
-	NSLog(@"Caught reloadData here.");
+	int index = [self _rowForTableCell: photoCell];
+	[_photos removeObjectAtIndex: index];
+	[self reloadData];
 }
 
 - (NSArray *)pushablePhotos {
@@ -112,10 +106,20 @@
 	return [_photos count];
 }
 
+- (float)table: (UITable *)table heightForRow: (int)row {
+	NSLog(@"Returning height for row %d", row);
+	return 96;
+}
+
 - (BOOL)table: (UITable *)table canDeleteRow: (int)row
 {
 	if (row < [_photos count])
 		return TRUE;
+}
+
+- (BOOL)table: (UITable *)table canSelectRow: (int)row {
+	/* For now, don't let the user select the row - in the future... */
+	return FALSE;
 }
 
 - (void)tableRowSelected: (NSNotification *)notification {

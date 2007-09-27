@@ -394,10 +394,9 @@
 /*
  * When the user clicks on the 'Push to Flickr' button, push the photos that haven't been pushed yet, and pass the XML for the responses back to the main class when finished.
  */
-- (void)triggerUpload: (id)unused
+- (void)triggerUpload: (id)photos
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSArray *photos = [_pushr cameraRollPhotos];
 	NSMutableArray *responses = [NSMutableArray array];
 
 	int currentPhotoIndex = -1;
