@@ -13,6 +13,7 @@
 #import <CoreGraphics/CGColor.h>
 #import <CoreGraphics/CGColorSpace.h>
 #import <UIKit/UIKit.h>
+#import "MobilePushr.h"
 #import "PushablePhotos.h"
 
 @implementation PushablePhotos
@@ -21,7 +22,7 @@
 {
 	NSUserDefaults *_settings = [NSUserDefaults standardUserDefaults];
 	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
-	NSMutableArray *p = [NSMutableArray array];
+	NSMutableArray *photos = [NSMutableArray array];
 
 	int currentPhotoIndex = 0;
 
@@ -31,14 +32,14 @@
 		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
 			currentPhotoIndex = [[[[jpg pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
 			if (currentPhotoIndex > [_settings integerForKey: @"lastPushedPhotoIndex"])
-				[p addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
+				[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
 		}
 	}
 
-	return [NSArray arrayWithArray: p];
+	return [NSArray arrayWithArray: photos];
 }
 
-- (id)initWithFrame: (struct CGRect)frame {
+- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr {
 	if (![super initWithFrame: frame])
 		return nil;
 
@@ -55,14 +56,58 @@
 	[_table setDataSource: _table];
 	[_table reloadData];
 
+	_pushr = [pushr retain];
+
 	[self addSubview: _table];
 
 	return self;
 }
 
+- (void)dealloc
+{
+	[_table release];
+	[_pushr release];
+	[super dealloc];
+}
+
+- (void)emptyRoll {
+	[_table setPhotos: [NSArray array]];
+	[_table reloadData];
+}
+
 - (NSArray *)photosToPush {
 	NSLog(@"Called photosToPush...");
 	return [_table pushablePhotos];
+}
+
+- (void)promptUserToEditPhotos: (NSArray *)photoList {
+	_photoList = [photoList retain];
+    UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+    [alertSheet setTitle: @"Done pushing to Flickr"];
+    [alertSheet setBodyText: @"Would you like to edit the information for your Flickr photos in Safari now?"];
+    [alertSheet addButtonWithTitle: @"Proceed"];
+    [alertSheet addButtonWithTitle: @"Cancel"];
+    [alertSheet setDelegate: self];
+    [alertSheet popupAlertAnimated: YES];
+}
+
+- (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button {
+	BOOL shouldTerminate = NO;
+
+	switch (button) {
+		case 1:
+			[_pushr openURL: [NSString stringWithFormat: @"http://www.flickr.com/tools/uploader_edit.gne?ids=%@", [_photoList componentsJoinedByString: @","]]];
+			break;
+		default:
+			shouldTerminate = YES;
+	}
+
+	[sheet dismiss];
+	[sheet release];
+	[_photoList release];
+
+    if (shouldTerminate)
+        [_pushr terminate];
 }
 
 @end

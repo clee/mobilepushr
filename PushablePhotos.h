@@ -9,14 +9,19 @@
 #import <UIKit/UITable.h>
 #import <UIKit/UIImageAndTextTableCell.h>
 
-@class NSArray, NSString, PushablePhotosTable, RemovablePhotoCell;
+@class NSArray, NSString, MobilePushr, PushablePhotosTable, RemovablePhotoCell;
 
 @interface PushablePhotos : UIView
 {
 	PushablePhotosTable *_table;
+	NSArray *_photoList;
+	MobilePushr *_pushr;
 }
 
+- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr;
+- (void)emptyRoll;
 - (NSArray *)photosToPush;
+- (void)promptUserToEditPhotos: (NSArray *)photoList;
 
 @end
 

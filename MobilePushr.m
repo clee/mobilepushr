@@ -94,7 +94,7 @@ typedef enum {
 	[_window _setHidden: NO];
 
 	NSLog(@"Creating PushablePhotos view...");
-	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect];
+	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect application: self];
 	[mainView addSubview: _pushablePhotos];
 	NSLog(@"Added PushablePhotos subview");
 
@@ -253,6 +253,15 @@ typedef enum {
 	[_progress removeFromSuperview];
 	[_label removeFromSuperview];
 	[_shade removeFromSuperview];
+	[_pushablePhotos emptyRoll];
+
+	NSMutableArray *photoIDs = [NSMutableArray array];
+	NSEnumerator *enumerator = [responses objectEnumerator];
+	id responseData = nil;
+	while ((responseData = [enumerator nextObject])) {
+		[photoIDs addObject: [[[_flickr getXMLNodesNamed: @"photoid" fromResponse: [responseData dataUsingEncoding: NSUTF8StringEncoding]] lastObject] stringValue]];
+	}
+	[_pushablePhotos promptUserToEditPhotos: photoIDs];
 	[_button setEnabled: YES];
 	[_button setBackgroundImage: [UIImage imageNamed: @"mainbutton.png"]];
 }
@@ -265,7 +274,6 @@ typedef enum {
 
 - (void)dealloc
 {
-	[_thumbnailView release];
 	[_progress release];
 	[_label release];
 	[_shade release];
