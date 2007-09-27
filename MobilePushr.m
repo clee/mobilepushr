@@ -80,7 +80,7 @@ typedef enum {
 - (void)popupEmptyCameraRollAlertSheet
 {
 	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
-	[alertSheet setTitle: @"There aren't any photos to push"];
+	[alertSheet setTitle: @"There are no photos to push"];
 	[alertSheet setBodyText: @"Use the Camera application to put photos into the Camera Roll album."];
 	[alertSheet addButtonWithTitle: @"Quit Pushr"];
 	[alertSheet setDelegate: self];
@@ -89,9 +89,7 @@ typedef enum {
 
 - (void)checkNetworkType
 {
-	NSLog(@"Inside of checkNetworkType...");
 	_netUtil = [[PushrNetUtil alloc] initWithPushr: self];
-	NSLog(@"Allocated _netUtil");
 	if (![_netUtil hasWiFi])
 		[_netUtil warnUserAboutSlowEDGE];
 }

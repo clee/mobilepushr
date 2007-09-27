@@ -13,7 +13,9 @@
 #import <CoreGraphics/CGColor.h>
 #import <CoreGraphics/CGColorSpace.h>
 #import <UIKit/UIKit.h>
+
 #import "MobilePushr.h"
+#import "Flickr.h"
 #import "PushablePhotos.h"
 
 @implementation PushablePhotos
@@ -39,7 +41,8 @@
 	return [NSArray arrayWithArray: photos];
 }
 
-- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr {
+- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr
+{
 	if (![super initWithFrame: frame])
 		return nil;
 
@@ -70,17 +73,19 @@
 	[super dealloc];
 }
 
-- (void)emptyRoll {
+- (void)emptyRoll
+{
 	[_table setPhotos: [NSArray array]];
 	[_table reloadData];
 }
 
-- (NSArray *)photosToPush {
-	NSLog(@"Called photosToPush...");
+- (NSArray *)photosToPush
+{
 	return [_table pushablePhotos];
 }
 
-- (void)promptUserToEditPhotos: (NSArray *)photoList {
+- (void)promptUserToEditPhotos: (NSArray *)photoList
+{
 	_photoList = [photoList retain];
     UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
     [alertSheet setTitle: @"Done pushing to Flickr"];
@@ -91,40 +96,38 @@
     [alertSheet popupAlertAnimated: YES];
 }
 
-- (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button {
-	BOOL shouldTerminate = NO;
-
-	switch (button) {
-		case 1:
-			[_pushr openURL: [NSURL URLWithString: [NSString stringWithFormat: @"http://www.flickr.com/tools/uploader_edit.gne?ids=%@", [_photoList componentsJoinedByString: @","]]]];
-			break;
-		default:
-			shouldTerminate = YES;
-	}
-
+- (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
+{
 	[sheet dismiss];
 	[sheet release];
 	[_photoList release];
 
-    if (shouldTerminate)
-        [_pushr terminate];
+	switch (button) {
+		case 1: {
+			[_pushr openURL: [NSURL URLWithString: [NSString stringWithFormat: @"%@?ids=%@", FLICKR_FINISHED_URL, [_photoList componentsJoinedByString: @","]]]];
+			break;
+		}
+		default: {
+        	[_pushr terminate];
+		}
+	}
 }
 
 @end
 
 @implementation PushablePhotosTable
 
-- (void)setPhotos: (NSArray *)photos {
+- (void)setPhotos: (NSArray *)photos
+{
 	_photos = [[NSMutableArray alloc] initWithArray: photos];
-	NSLog(@"Called setPhotos %@", _photos);
 }
 
-- (int)swipe: (int)type withEvent: (struct __GSEvent *)event {
+- (int)swipe: (int)type withEvent: (struct __GSEvent *)event
+{
 	if ((4 == type) || (8 == type)) {
 		struct CGRect rect = GSEventGetLocationInWindow(event);
 		CGPoint point = CGPointMake(rect.origin.x, rect.origin.y - 44.0f);
 		CGPoint offset = _startOffset; 
-		NSLog(@"swipe: %d %f, %f", type, point.x, point.y);
 
 		point.x += offset.x;
 		point.y += offset.y;
@@ -136,27 +139,26 @@
 	return [super swipe: type withEvent: event];
 }
 
-- (void)removePhoto: (RemovablePhotoCell *)photoCell {
+- (void)removePhoto: (RemovablePhotoCell *)photoCell
+{
 	int index = [self _rowForTableCell: photoCell];
-	NSLog(@"Removing photo at index %d (from %@)", index, _photos);
 	[_photos removeObjectAtIndex: index];
-	NSLog(@"Now photos looks like: %@", _photos);
 	[self reloadData];
 }
 
-- (NSArray *)pushablePhotos {
-	NSLog(@"Requesting photos for upload: %@", _photos);
+- (NSArray *)pushablePhotos
+{
 	return [NSArray arrayWithArray: _photos];
 }
 
-- (int)numberOfRowsInTable: (UITable *)table {
-	NSLog(@"Returning number of rows: %d", [_photos count]);
+- (int)numberOfRowsInTable: (UITable *)table
+{
 	return [_photos count];
 }
 
-- (float)table: (UITable *)table heightForRow: (int)row {
-	NSLog(@"Returning height for row %d", row);
-	return 96;
+- (float)table: (UITable *)table heightForRow: (int)row
+{
+	return 96.0f;
 }
 
 - (BOOL)table: (UITable *)table canDeleteRow: (int)row
@@ -165,17 +167,20 @@
 		return TRUE;
 }
 
-- (BOOL)table: (UITable *)table canSelectRow: (int)row {
+- (BOOL)table: (UITable *)table canSelectRow: (int)row
+{
 	/* For now, don't let the user select the row - in the future... */
 	return FALSE;
 }
 
-- (void)tableRowSelected: (NSNotification *)notification {
+- (void)tableRowSelected: (NSNotification *)notification
+{
 	// TODO: trigger slide-in of the "Edit Photo Information" panel...
 	return;
 }
 
-- (UITableCell *)table: (UITable *)table cellForRow: (int)row column: (UITableColumn *)col {
+- (UITableCell *)table: (UITable *)table cellForRow: (int)row column: (UITableColumn *)col
+{
 	RemovablePhotoCell *cell = [[RemovablePhotoCell alloc] init];
 	NSString *photo = [_photos objectAtIndex: row];
 	NSString *thumbnail = [[photo stringByDeletingPathExtension] stringByAppendingPathExtension: @"THM"];
@@ -188,23 +193,29 @@
 	return cell;
 }
 
-- (BOOL)respondsToSelector: (SEL)selector {
+/*
+- (BOOL)respondsToSelector: (SEL)selector
+{
 	BOOL response = [super respondsToSelector: selector];
-	// NSLog(@"Called respondsToSelector: %s (returned %d)", selector, response);
+	NSLog(@"Called respondsToSelector: %s (returned %d)", selector, response);
 	return response;
 }
 
-- (NSMethodSignature*)methodSignatureForSelector:(SEL)selector {
-	// NSLog(@"methodSignatureForSelector: %s", selector);
+- (NSMethodSignature*)methodSignatureForSelector:(SEL)selector
+{
+	NSLog(@"methodSignatureForSelector: %s", selector);
 	return [super methodSignatureForSelector: selector];
 }
 
-- (void)forwardInvocation:(NSInvocation*)invocation {
-	// NSLog(@"forwardInvocation: %s", [invocation selector]);
+- (void)forwardInvocation:(NSInvocation*)invocation
+{
+	NSLog(@"forwardInvocation: %s", [invocation selector]);
 	[super forwardInvocation: invocation];
 }
+*/
 
-- (void)dealloc {
+- (void)dealloc
+{
 	[_photos release];
 	[super dealloc];
 }
@@ -218,22 +229,24 @@
     [self _showDeleteOrInsertion: NO withDisclosure: NO animated: YES isDelete: YES andRemoveConfirmation: NO];
 }
 
-- (void)setTable: (PushablePhotosTable *)table {
+- (void)setTable: (PushablePhotosTable *)table
+{
 	_table = table;
 }
 
-- (void)setPath: (NSString *)path {
+- (void)setPath: (NSString *)path
+{
 	[_path release];
-	NSLog(@"Setting path: %@", path);
 	_path = [path retain];
 }
 
-- (NSString *)path {
+- (NSString *)path
+{
 	return _path;
 }
 
-- (void)_willBeDeleted {
-	NSLog(@"Removing photo: %@", _path);
+- (void)_willBeDeleted
+{
 	[_table removePhoto: self];
 }
 

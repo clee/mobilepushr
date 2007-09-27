@@ -22,10 +22,8 @@
 		return nil;
 	}
 
-	NSLog(@"Inside initWithPushr...");
 	_pushr = [pushr retain];
 	_activeInterfaceNames = [[NSMutableArray alloc] initWithCapacity: 0];
-	NSLog(@"Created mutable array for interface names");
 
 	struct ifaddrs *first_ifaddr, *current_ifaddr;
 	getifaddrs(&first_ifaddr);
@@ -77,13 +75,11 @@
 
 - (NSArray *)activeInterfaceNames
 {
-	NSLog(@"Inside activeInterfaceNames...");
 	return [NSArray arrayWithArray: _activeInterfaceNames];
 }
 
 - (BOOL)hasWiFi
 {
-	NSLog(@"Inside hasWiFi...");
 	NSArray *activeInterfaces = [self activeInterfaceNames];
 	return [activeInterfaces containsObject: @"en0"] || [activeInterfaces containsObject: @"en1"];
 }

@@ -60,7 +60,6 @@
 	NSXMLNode *rsp = [[responseDocument children] objectAtIndex: 0];
 	if (![[rsp name] isEqualToString: @"rsp"]) {
 		NSLog(@"This is not an <rsp> tag! Bailing out.");
-		NSLog(@"Debug: name %@, %@", [rsp name], [rsp XMLString]);
 		return FALSE;
 	}
 
@@ -373,10 +372,8 @@
 		}
 
 		numBytesRead = CFReadStreamRead(_readStream, buf, 1024);
-		if (numBytesRead < 1024) {
-			NSLog(@"numBytesRead: %d", numBytesRead);
+		if (numBytesRead < 1024)
 			buf[numBytesRead] = 0;			
-		}
 		[responseString appendFormat: @"%s", buf];
 
 		if (CFReadStreamGetStatus(_readStream) == kCFStreamStatusAtEnd) doneUploading = YES;
