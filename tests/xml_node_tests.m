@@ -30,7 +30,6 @@ NSDictionary *getXMLNodesAndAttributesFromResponse(NSData *responseData)
 	id responseDoc = [[NSClassFromString(@"NSXMLDocument") alloc] initWithData: responseData options: 0 error: &err];
 
 	NSMutableDictionary *nodesWithAttributes = [NSMutableDictionary dictionary];
-
 	NSArray *nodes = [responseDoc children];
 	NSEnumerator *chain = [nodes objectEnumerator];
 	NSXMLNode *node = nil;
@@ -53,6 +52,8 @@ NSDictionary *getXMLNodesAndAttributesFromResponse(NSData *responseData)
 
 		[element release];
 	}
+	
+	[responseDoc release];
 
 	return [NSDictionary dictionaryWithDictionary: nodesWithAttributes];
 }
@@ -64,14 +65,14 @@ int main(int a, char **b)
 	NSData *frobXML = [NSData dataWithContentsOfFile: @"get_frob_response.xml"];
 	NSString *frob = [[getXMLNodesNamed(@"frob", frobXML) lastObject] stringValue];
 	NSLog(@"Result of getXMLNodes (frob): %@", frob);
-	
+
 	NSData *tagsXML = [NSData dataWithContentsOfFile: @"get_tags_response.xml"];
 	NSArray *tags = getXMLNodesNamed(@"tag", tagsXML);
 	NSEnumerator *tagChain = [tags objectEnumerator];
 	id currentTag = nil;
 	while ((currentTag = [tagChain nextObject]))
 		NSLog(@"Tag found: %@", [currentTag stringValue]);
-		
+
 	NSData *tokenXML = [NSData dataWithContentsOfFile: @"full_auth_token_response.xml"];
 	NSDictionary *token = getXMLNodesAndAttributesFromResponse(tokenXML);
 	NSLog(@"Token is: \n---\n%@\n---\n", token);

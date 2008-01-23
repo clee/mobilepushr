@@ -35,6 +35,7 @@
 #import "PushrNetUtil.h"
 #import "Flickr.h"
 #import "PushablePhotos.h"
+#import "ExtendedAttributes.h"
 
 #pragma mark Island of Misfit Toys
 typedef enum {
@@ -64,7 +65,27 @@ typedef enum {
 
 - (NSArray *)cameraRollPhotos
 {
-	return [_pushablePhotos photosToPush];
+	_settings = [NSUserDefaults standardUserDefaults];
+	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
+	NSMutableArray *photos = [NSMutableArray array];
+
+	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
+	NSString *jpg;
+	while ((jpg = [dirEnum nextObject])) {
+		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
+			NSArray *attributes = [ExtendedAttributes allKeysAtPath: [cameraRollDir stringByAppendingPathComponent: jpg]];
+			if ([attributes containsObject: MIGRATED_ATTRIBUTE])
+				continue;
+			// TODO: Ignore this file for now, but in the future, support showing previously-ignored files
+			if ([attributes containsObject: IGNORED_ATTRIBUTE])
+				continue;
+			if ([attributes containsObject: PUSHED_ATTRIBUTE])
+				continue;
+			[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
+		}
+	}
+
+	return [NSArray arrayWithArray: photos];
 }
 
 - (void)popupFailureAlertSheet
@@ -74,6 +95,7 @@ typedef enum {
 	[alertSheet setBodyText: @"Somewhere, there's a leak in the pipes, and this application's not Plumbr..."];
 	[alertSheet addButtonWithTitle: @"Accept"];
 	[alertSheet setDelegate: self];
+	[alertSheet setRunsModal: YES];
 	[alertSheet popupAlertAnimated: YES];
 }
 
@@ -84,14 +106,53 @@ typedef enum {
 	[alertSheet setBodyText: @"Use the Camera application to put photos into the Camera Roll album."];
 	[alertSheet addButtonWithTitle: @"Quit Pushr"];
 	[alertSheet setDelegate: self];
+	[alertSheet setRunsModal: YES];
 	[alertSheet popupAlertAnimated: YES];
+}
+
+- (void)migratePhotoMetadata
+{
+	_settings = [NSUserDefaults standardUserDefaults];
+	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
+
+	int currentPhotoIndex = 0;
+
+	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
+	NSString *jpg;
+	while ((jpg = [dirEnum nextObject])) {
+		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
+			currentPhotoIndex = [[[[jpg pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
+			if (currentPhotoIndex <= [_settings integerForKey: @"lastPushedPhotoIndex"])
+				[ExtendedAttributes setString: @"true" forKey: MIGRATED_ATTRIBUTE atPath: [cameraRollDir stringByAppendingPathComponent: jpg]];
+		}
+	}
+
+	[_settings removeObjectForKey: @"lastPushedPhotoIndex"];
 }
 
 - (void)checkNetworkType
 {
 	_netUtil = [[PushrNetUtil alloc] initWithPushr: self];
-	if (![_netUtil hasWiFi])
+
+	if ([_netUtil hasWiFi])
+		return;
+
+	if ([_netUtil hasEDGE])
 		[_netUtil warnUserAboutSlowEDGE];
+	else
+		[_netUtil drownWithoutNetwork];
+}
+
+- (void)checkCameraRoll
+{
+	_settings = [NSUserDefaults standardUserDefaults];
+	if ([_settings integerForKey: @"lastPushedPhotoIndex"]) {
+		[self migratePhotoMetadata];
+		[_settings removeObjectForKey: @"lastPushedPhotoIndex"];
+	}
+
+	if ([[self cameraRollPhotos] count] == 0)
+		[self popupEmptyCameraRollAlertSheet];
 }
 
 - (void)loadConfiguration
@@ -133,8 +194,6 @@ typedef enum {
 
 	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect application: self];
 	[mainView addSubview: _pushablePhotos];
-	if ([[self cameraRollPhotos] count] == 0)
-		[self popupEmptyCameraRollAlertSheet];
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
@@ -271,7 +330,7 @@ typedef enum {
 	id responseString = nil;
 	while ((responseString = [enumerator nextObject])) {
 		NSLog(@"ResponseData: %@", responseString);
-		[photoIDs addObject: [[[_flickr getXMLNodesNamed: @"photoid" fromResponse: [responseString dataUsingEncoding: NSUTF8StringEncoding]] lastObject] stringValue]];		
+		[photoIDs addObject: [[[_flickr getXMLNodesNamed: @"photoid" fromResponse: [responseString dataUsingEncoding: NSUTF8StringEncoding]] lastObject] stringValue]];
 	}
 
 	[_pushablePhotos promptUserToEditPhotos: photoIDs];
@@ -282,6 +341,7 @@ typedef enum {
 - (void)applicationDidFinishLaunching: (id) unused
 {
 	[self checkNetworkType];
+	[self checkCameraRoll];
 	[self loadConfiguration];
 	[self loadUserInterface];
 }

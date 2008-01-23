@@ -7,6 +7,10 @@
  */
 #import <UIKit/UIApplication.h>
 
+#define MIGRATED_ATTRIBUTE @"org.mg8.MobilePushr.migrated"
+#define IGNORED_ATTRIBUTE @"org.mg8.MobilePushr.ignored"
+#define PUSHED_ATTRIBUTE @"org.mg8.MobilePushr.pushed"
+
 @class NSUserDefaults, Flickr, PushrNetUtil, PushablePhotos, UIThreePartButton, UITextLabel, UIProgressBar, UIWindow, UIImageView;
 
 @interface MobilePushr: UIApplication

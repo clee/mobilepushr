@@ -17,29 +17,9 @@
 #import "MobilePushr.h"
 #import "Flickr.h"
 #import "PushablePhotos.h"
+#import "ExtendedAttributes.h"
 
 @implementation PushablePhotos
-
-- (NSArray *)cameraRollPhotos
-{
-	NSUserDefaults *_settings = [NSUserDefaults standardUserDefaults];
-	NSString *cameraRollDir = [NSHomeDirectory() stringByAppendingPathComponent:@"Media/DCIM"];
-	NSMutableArray *photos = [NSMutableArray array];
-
-	int currentPhotoIndex = 0;
-
-	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath: cameraRollDir];
-	NSString *jpg;
-	while ((jpg = [dirEnum nextObject])) {
-		if ([[jpg pathExtension] isEqualToString: @"JPG"]) {
-			currentPhotoIndex = [[[[jpg pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
-			if (currentPhotoIndex > [_settings integerForKey: @"lastPushedPhotoIndex"])
-				[photos addObject: [cameraRollDir stringByAppendingPathComponent: jpg]];
-		}
-	}
-
-	return [NSArray arrayWithArray: photos];
-}
 
 - (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr
 {
@@ -50,16 +30,16 @@
 	struct CGColor *whiteColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), color);
 	[self setBackgroundColor: whiteColor];
 
+	_pushr = [pushr retain];
+
 	_table = [[PushablePhotosTable alloc] initWithFrame: CGRectMake(frame.origin.x, frame.origin.y + 44.0f, frame.size.width, frame.size.height - (96.0f + 44.0f))];
 	UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Camera Roll" identifier: @"cameraroll" width: frame.size.width];
 	[_table addTableColumn: col];
 	[_table setSeparatorStyle: 1];
-	[_table setPhotos: [self cameraRollPhotos]];
+	[_table setPhotos: [_pushr cameraRollPhotos]];
 	[_table setDelegate: _table];
 	[_table setDataSource: _table];
 	[_table reloadData];
-
-	_pushr = [pushr retain];
 
 	[self addSubview: _table];
 
@@ -139,9 +119,16 @@
 	return [super swipe: type withEvent: event];
 }
 
+- (void)markPhotoAsIgnored: (NSString *)pathToPhoto
+{
+	NSLog(@"Marking photo at @% with ignored=true", pathToPhoto);
+	[ExtendedAttributes setString: @"true" forKey: IGNORED_ATTRIBUTE atPath: pathToPhoto];
+}
+
 - (void)removePhoto: (RemovablePhotoCell *)photoCell
 {
 	int index = [self _rowForTableCell: photoCell];
+	[self markPhotoAsIgnored: [_photos objectAtIndex: index]];
 	[_photos removeObjectAtIndex: index];
 	[self reloadData];
 }

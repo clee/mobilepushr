@@ -53,6 +53,18 @@
 	[alertSheet addButtonWithTitle: @"Push over EDGE"];
 	[alertSheet addButtonWithTitle: @"Try again later"];
 	[alertSheet setDelegate: self];
+	[alertSheet setRunsModal: YES];
+	[alertSheet popupAlertAnimated: YES];
+}
+
+- (void)drownWithoutNetwork
+{
+	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	[alertSheet setTitle: @"No network available"];
+	[alertSheet setBodyText: @"Pushr doesn't work if it can't talk to Flickr, and right now, no network connections are active."];
+	[alertSheet addButtonWithTitle: @"Try again later"];
+	[alertSheet setDelegate: _pushr];
+	[alertSheet setRunsModal: YES];
 	[alertSheet popupAlertAnimated: YES];
 }
 
@@ -82,6 +94,12 @@
 {
 	NSArray *activeInterfaces = [self activeInterfaceNames];
 	return [activeInterfaces containsObject: @"en0"] || [activeInterfaces containsObject: @"en1"];
+}
+
+- (BOOL)hasEDGE
+{
+	NSArray *activeInterfaces = [self activeInterfaceNames];
+	return [activeInterfaces containsObject: @"ip0"] || [activeInterfaces containsObject: @"ip1"];
 }
 
 @end

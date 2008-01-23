@@ -11,9 +11,9 @@
 #import <UIKit/UIAlertSheet.h>
 #import "Flickr.h"
 #import "MobilePushr.h"
+#import "ExtendedAttributes.h"
 
 #include <unistd.h>
-#include <sys/xattr.h>
 
 @class NSXMLNode, NSXMLElement, NSXMLDocument;
 
@@ -24,10 +24,8 @@
 	if (![super init])
 		return nil;
 
-	[_pushr release];
-
 	_pushr = [pushr retain];
-	_settings = [NSUserDefaults standardUserDefaults];
+	_settings = [[NSUserDefaults standardUserDefaults] retain];
 
 	return self;
 }
@@ -35,6 +33,7 @@
 - (void)dealloc
 {
 	[_pushr release];
+	[_settings release];
 	[super dealloc];
 }
 
@@ -42,7 +41,6 @@
 - (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
 {
 	[sheet dismiss];
-	[sheet release];
 
 	switch (button) {
 		case 1:
@@ -75,7 +73,7 @@
 }
 
 /*
- * Returns an array of XMLNode objects with name matching nodeName.
+ * Returns an array of XMLNode objects with name matching nodeName. [ken] get is unusual
  */
 - (NSArray *)getXMLNodesNamed: (NSString *)nodeName fromResponse: (NSData *)responseData
 {
@@ -109,7 +107,7 @@
 }
 
 /*
- * Returns a dictionary filled with the node names, node values, node attribute names, and attribute values.
+ * Returns a dictionary filled with the node names, node values, node attribute names, and attribute values. [ken] get is unusual
  */
 - (NSDictionary *)getXMLNodesAndAttributesFromResponse: (NSData *)responseData
 {
@@ -148,7 +146,7 @@
 
 	[responseDoc release];
 
-	return [NSDictionary dictionaryWithDictionary: nodesWithAttributes];
+	return [NSDictionary dictionaryWithDictionary: nodesWithAttributes]; // [ken] we'd usually just return the mutable dict
 }
 
 #pragma mark internal functions
@@ -237,12 +235,13 @@
  */
 - (void)sendToGrantPermission
 {
-	UIAlertSheet *alertSheet = [[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)];
+	UIAlertSheet *alertSheet = [[[UIAlertSheet alloc] initWithFrame: CGRectMake(0.0f, 0.0f, 320.0f, 240.0f)] autorelease];
 	[alertSheet setTitle: @"Can't upload to Flickr"];
 	[alertSheet setBodyText: @"Pushr needs your permission to upload pictures to Flickr."];
 	[alertSheet addButtonWithTitle: @"Proceed"];
 	[alertSheet addButtonWithTitle: @"Cancel"];
 	[alertSheet setDelegate: self];
+	[alertSheet setRunsModal: YES];
 	[alertSheet popupAlertAnimated: YES];
 	[_settings setBool: TRUE forKey: @"sentToGetToken"];
 }
@@ -397,14 +396,12 @@
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSMutableArray *responses = [NSMutableArray array];
 
-	int currentPhotoIndex = -1;
 	NSEnumerator *enumerator = [photos objectEnumerator];
 	id photo = nil;
 	while ((photo = [enumerator nextObject])) {
-		currentPhotoIndex = [[[[photo pathComponents] lastObject] substringWithRange: NSMakeRange(4, 4)] intValue];
 		[_pushr performSelectorOnMainThread: @selector(startingToPush:) withObject: photo waitUntilDone: NO];
 		[responses addObject: [self pushPhoto: photo]];
-		[_settings setInteger: currentPhotoIndex forKey: @"lastPushedPhotoIndex"];
+		[ExtendedAttributes setString: @"true" forKey: PUSHED_ATTRIBUTE atPath: photo];
 		[_pushr performSelectorOnMainThread: @selector(donePushing:) withObject: photo waitUntilDone: NO];
 	}
 

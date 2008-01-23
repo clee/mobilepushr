@@ -18,7 +18,9 @@
 
 - (id)initWithPushr: (MobilePushr *)pushr;
 - (void)warnUserAboutSlowEDGE;
+- (void)drownWithoutNetwork;
 - (NSArray *)activeInterfaceNames;
 - (BOOL)hasWiFi;
+- (BOOL)hasEDGE;
 
 @end
