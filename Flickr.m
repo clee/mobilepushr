@@ -64,6 +64,7 @@
 	id element = [[NSClassFromString(@"NSXMLElement") alloc] initWithXMLString: [rsp XMLString] error: &err];
 	if (![[[element attributeForName: @"stat"] stringValue] isEqualToString: @"ok"]) {
 		NSLog(@"The status is not 'ok', and we have no error recovery.");
+		NSLog(@"XML: %@", [rsp XMLString]);
 		[element release];
 		return FALSE;
 	}
@@ -214,8 +215,8 @@
  */
 - (NSArray *)tags
 {
-	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", nil];
-	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TAGS, nil];
+	NSArray *keys = [NSArray arrayWithObjects: @"api_key", @"method", @"user_id", nil];
+	NSArray *vals = [NSArray arrayWithObjects: PUSHR_API_KEY, FLICKR_GET_TAGS, [_settings stringForKey: @"nsid"], nil];
 	NSDictionary *params = [NSDictionary dictionaryWithObjects: vals forKeys: keys];
 
 	NSURL *url = [self signedURL: params];

@@ -34,6 +34,7 @@
 #import "MobilePushr.h"
 #import "PushrNetUtil.h"
 #import "Flickr.h"
+#import "PushrSettings.h"
 #import "PushablePhotos.h"
 #import "ExtendedAttributes.h"
 
@@ -48,18 +49,6 @@ typedef enum {
 } UIControlEventMasks;
 
 @implementation MobilePushr
-
-- (void) alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
-{
-	[sheet dismiss];
-	[sheet release];
-
-	switch (button) {
-		default: {
-			[self terminate];
-		}
-	}
-}
 
 #pragma mark MobilePushr Methods
 
@@ -198,6 +187,8 @@ typedef enum {
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
 	UINavigationBar *topBar = [[UINavigationBar alloc] initWithFrame: topBarRect];
 	[topBar setBarStyle: 1];
+	[topBar setDelegate: self];
+	[topBar showLeftButton: nil withStyle: 0 rightButton: @"Settings" withStyle: 0];
 	[mainView addSubview: topBar];
 
 	UINavigationItem *topBarTitle = [[UINavigationItem alloc] initWithTitle: @"Pushr"];
@@ -253,13 +244,17 @@ typedef enum {
 	[UIView setAnimationDuration: 1.0];
 
 	[topBar pushNavigationItem: topBarTitle];
-	// [topBar showLeftButton: @"Left" withStyle: 1 rightButton: @"Right" withStyle: 2];
 	[UIView endAnimations];
 	[topBar release];
 	[topBarTitle release];
 	[bottomBar release];
 	[mainView release];
 	_thumbnailView = nil;
+}
+
+- (void)loadSettings
+{
+	[[PushrSettings alloc] initFromWindow: _window withPushr: self];
 }
 
 - (void)buttonReleased
@@ -344,6 +339,37 @@ typedef enum {
 	[self checkCameraRoll];
 	[self loadConfiguration];
 	[self loadUserInterface];
+}
+
+#pragma mark Delegate functions here
+
+- (void)alertSheet: (UIAlertSheet *)sheet buttonClicked: (int)button
+{
+	[sheet dismiss];
+	[sheet release];
+
+	switch (button) {
+		default: {
+			[self terminate];
+		}
+	}
+}
+
+- (void)navigationBar: (UINavigationBar *)navBar buttonClicked: (int)button
+{
+	switch (button) {
+		// Show the Settings page
+		case 0: {
+			NSLog(@"Calling loadSettings");
+			[self loadSettings];
+			break;
+		}
+		// Shouldn't happen since there is no left navbar button
+		case 1: {
+			NSLog(@"Shouldn't be here...");
+			break;
+		}
+	}
 }
 
 - (void)dealloc
