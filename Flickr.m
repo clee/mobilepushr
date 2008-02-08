@@ -305,6 +305,29 @@
 {
 	NSString *token = [_settings stringForKey: @"token"];
 	NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys: PUSHR_API_KEY, @"api_key", token, @"auth_token", nil];
+	if ([[ExtendedAttributes allKeysAtPath: pathToJPG] containsObject: NAME_ATTRIBUTE])
+		[params setObject: [ExtendedAttributes stringForKey: NAME_ATTRIBUTE atPath: pathToJPG] forKey: @"title"];
+	if ([[ExtendedAttributes allKeysAtPath: pathToJPG] containsObject: DESCRIPTION_ATTRIBUTE])
+		[params setObject: [ExtendedAttributes stringForKey: DESCRIPTION_ATTRIBUTE atPath: pathToJPG] forKey: @"description"];
+	if ([[_settings arrayForKey: @"defaultTags"] count] > 0)
+		[params setObject: [[_settings arrayForKey: @"defaultTags"] componentsJoinedByString: @" "] forKey: @"tags"];
+	if ([[ExtendedAttributes allKeysAtPath: pathToJPG] containsObject: TAGS_ATTRIBUTE])
+		[params setObject: [[ExtendedAttributes objectForKey: TAGS_ATTRIBUTE atPath: pathToJPG] componentsJoinedByString: @" "] forKey: @"tags"];
+	if ([[_settings arrayForKey: @"defaultPrivacy"] count] > 0 || [[ExtendedAttributes allKeysAtPath: pathToJPG] containsObject: PRIVACY_ATTRIBUTE]) {
+		NSArray *privacy = [_settings arrayForKey: @"defaultPrivacy"];
+		if ([[ExtendedAttributes allKeysAtPath: pathToJPG] containsObject: PRIVACY_ATTRIBUTE])
+			privacy = [ExtendedAttributes objectForKey: PRIVACY_ATTRIBUTE atPath: pathToJPG];
+
+		if ([privacy containsObject: @"Public"]) {
+			[params setObject: @"1" forKey: @"is_public"];
+		} else {
+			[params setObject: @"0" forKey: @"is_public"];
+			if ([privacy containsObject: @"Friends"])
+				[params setObject: @"1" forKey: @"is_friend"];
+			if ([privacy containsObject: @"Family"])
+				[params setObject: @"1" forKey: @"is_family"];
+		}
+	}
 	NSArray *pairs = [params pairsJoinedByString: @""];
 	NSString *api_sig = [NSString stringWithFormat: @"%@%@", PUSHR_SHARED_SECRET, [pairs componentsJoinedByString: @""]];
 	[params setObject: [api_sig md5HexHash] forKey: @"api_sig"];

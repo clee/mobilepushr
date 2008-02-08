@@ -18,10 +18,11 @@
 #import "Flickr.h"
 #import "PushablePhotos.h"
 #import "ExtendedAttributes.h"
+#import "PushrPhotoProperties.h"
 
 @implementation PushablePhotos
 
-- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr
+- (id)initWithFrame: (struct CGRect)frame application: (MobilePushr *)pushr inWindow: (UIWindow *)window;
 {
 	if (![super initWithFrame: frame])
 		return nil;
@@ -31,10 +32,12 @@
 	[self setBackgroundColor: whiteColor];
 
 	_pushr = [pushr retain];
+	_mainWindow = window;
 
 	_table = [[PushablePhotosTable alloc] initWithFrame: CGRectMake(frame.origin.x, frame.origin.y + 44.0f, frame.size.width, frame.size.height - (96.0f + 44.0f))];
 	UITableColumn *col = [[UITableColumn alloc] initWithTitle: @"Camera Roll" identifier: @"cameraroll" width: frame.size.width];
 	[_table addTableColumn: col];
+	[_table setApp: _pushr inWindow: _mainWindow];
 	[_table setSeparatorStyle: 1];
 	[_table setPhotos: [_pushr cameraRollPhotos]];
 	[_table setDelegate: _table];
@@ -102,6 +105,12 @@
 	_photos = [[NSMutableArray alloc] initWithArray: photos];
 }
 
+- (void)setApp: (MobilePushr *)pushr inWindow: (UIWindow *)window
+{
+	_pushr = [pushr retain];
+	_mainWindow = window;
+}
+
 - (int)swipe: (int)type withEvent: (struct __GSEvent *)event
 {
 	if ((4 == type) || (8 == type)) {
@@ -151,19 +160,17 @@
 - (BOOL)table: (UITable *)table canDeleteRow: (int)row
 {
 	if (row < [_photos count])
-		return TRUE;
+		return YES;
 }
 
 - (BOOL)table: (UITable *)table canSelectRow: (int)row
 {
-	/* For now, don't let the user select the row - in the future... */
-	return FALSE;
+	return YES;
 }
 
 - (void)tableRowSelected: (NSNotification *)notification
 {
-	// TODO: trigger slide-in of the "Edit Photo Information" panel...
-	return;
+	[[PushrPhotoProperties alloc] initFromWindow: _mainWindow withPushr: _pushr forPhoto: [_photos objectAtIndex: [self selectedRow]]];
 }
 
 - (UITableCell *)table: (UITable *)table cellForRow: (int)row column: (UITableColumn *)col

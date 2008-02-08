@@ -8,7 +8,7 @@ RESOURCES = Info.plist Default.png bottombar.png icon.png mainbutton.png mainbut
 
 all: MobilePushr package
 
-MobilePushr: main.o MobilePushr.o FlickrCategory.o Flickr.o PushablePhotos.o PushrNetUtil.o ExtendedAttributes.o PushrSettings.o
+MobilePushr: main.o MobilePushr.o FlickrCategory.o Flickr.o PushablePhotos.o PushrNetUtil.o ExtendedAttributes.o PushrSettings.o PushrPhotoProperties.o
 	@echo "Linking $@... "
 	@$(CC) $(LDFLAGS) -o $@ $^
 	@echo "done."

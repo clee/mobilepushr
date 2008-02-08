@@ -181,7 +181,7 @@ typedef enum {
 	[_window setContentView: mainView];
 	[_window _setHidden: NO];
 
-	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect application: self];
+	_pushablePhotos = [[PushablePhotos alloc] initWithFrame: appRect application: self inWindow: _window];
 	[mainView addSubview: _pushablePhotos];
 
 	struct CGRect topBarRect = CGRectMake(0.0f, 0.0f, appRect.size.width, 44.0f);
